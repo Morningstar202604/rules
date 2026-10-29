@@ -85,7 +85,7 @@ function listFiles() {
 
   // 分块提交 tree（避免单请求过大）
   let currentTree = baseTree;
-  const CHUNK = 120;
+  const CHUNK = 60;
   for (let i = 0; i < tree.length; i += CHUNK) {
     const chunk = tree.slice(i, i + CHUNK);
     const t = await call('POST', `${repo}/git/trees`, { base_tree: currentTree, tree: chunk });
