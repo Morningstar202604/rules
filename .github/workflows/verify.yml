@@ -18,6 +18,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Router smoke (agent + skill)
+        shell: bash
+        run: |
+          python core/skills/agent-router/scripts/agent_router.py "翻译这份合同" --agents-dir core/agents --top 1 | tee /tmp/agent.txt
+          grep -q "translation-team-lead" /tmp/agent.txt
+          python core/skills/skill-router/scripts/skill_router.py "帮我画一个系统架构图" --skills-dir core/skills --top 3 | tee /tmp/skill.txt
+          grep -q "diagram-builder-pro" /tmp/skill.txt
       - name: Hook selftest
         run: node core/hooks/selftest.js
       - name: Repo verification

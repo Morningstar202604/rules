@@ -13,6 +13,30 @@ const fs = require('node:fs');
 const TIMEOUT_MS = 2500;
 const MAX_LINES = 3;
 
+// Python 解释器探测：Windows 常见只有 python/launcher，Linux/macOS 常见 python3。
+// CI 的 windows-latest 默认没有 `python` 命令，必须回退，否则路由静默失效。
+let interpreter = null;
+
+function candidates() {
+  if (process.platform === 'win32') return ['python', 'python3', 'py'];
+  return ['python3', 'python'];
+}
+
+function probe(idx, cb) {
+  if (idx >= candidates().length) return cb(null);
+  const bin = candidates()[idx];
+  execFile(bin, ['--version'], { timeout: 3000, windowsHide: true }, (err) => {
+    if (err) return probe(idx + 1, cb);
+    interpreter = bin;
+    cb(bin);
+  });
+}
+
+function withInterpreter(cb) {
+  if (interpreter) return cb(interpreter);
+  probe(0, cb);
+}
+
 function findScript(rulesHome, skillName, fileName) {
   const candidates = [
     path.join(rulesHome, 'skills', skillName, 'scripts', fileName),
@@ -32,12 +56,15 @@ function findAgentsDir(rulesHome) {
 }
 
 function run(args, cb) {
-  execFile(
-    process.platform === 'win32' ? 'python' : 'python3',
-    args,
-    { timeout: TIMEOUT_MS, windowsHide: true, maxBuffer: 64 * 1024 },
-    (err, stdout) => cb(err ? null : String(stdout || ''))
-  );
+  withInterpreter((bin) => {
+    if (!bin) return cb(null);
+    execFile(
+      bin,
+      args,
+      { timeout: TIMEOUT_MS, windowsHide: true, maxBuffer: 64 * 1024 },
+      (err, stdout) => cb(err ? null : String(stdout || ''))
+    );
+  });
 }
 
 function routeSkills(rulesHome, task, cb) {
