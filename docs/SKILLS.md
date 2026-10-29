@@ -1,4 +1,4 @@
-# 技能清单（98）
+# 技能清单（99）
 
 安装后位于 `<安装目录>/skills/`。触发词与完整流程见各目录内的 `SKILL.md`。
 
@@ -55,6 +55,7 @@
 | `incremental-refactor` | 安全地重构既有代码：小步改动、行为不变、测试护航、可随时停下。触发：重构、拆分模块、替换实现、清理技术债。 |
 | `intent-recognition` | 开工前把「他想要什么、这个项目是什么」问清楚：目标、定位、干系人、约束、验收。 |
 | `internal-comms` | Templates and guidance for internal communications: status reports, leadership updates, newsletter… |
+| `long-run-execution` | 让长任务跑一天也不丢目标：定期落检查点、中断后从断点续跑、收尾前对账。 |
 | `master-checklist` | 主理人工作契约 + 能力最大化指令 + 分类执行清单：开工先拉满、交付带三清单。 |
 | `mcp-builder` | Guide for building high-quality MCP (Model Context Protocol) servers connecting LLMs to external s… |
 | `observability-designer` | 设计可观测性体系：metrics/logs/traces、RED/USE 指标、仪表盘与告警、OpenTelemetry 接入、健康检查与关键路径埋点。触发：dashboard / alert f… |

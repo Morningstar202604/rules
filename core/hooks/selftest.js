@@ -282,6 +282,23 @@ const CASES = [
     setup: (cwd) => prepState(cwd, { changedFiles: ['src/a.ts'], turnStartedAt: new Date().toISOString(), cleanupNudged: true }),
     payload: (cwd) => ({ session_id: 'st-sess', cwd }),
     expect: (o) => o === null },
+  { name: 'checkpoint-remind: 记忆新鲜时不提醒', script: 'checkpoint-remind.js',
+    setup: (cwd) => {
+      fs.writeFileSync(m.memoryPathFor(cwd), '# 记忆\n\n## 当前状态\n\n- 下一步：继续\n');
+      prepState(cwd, { toolCalls: 14 });
+    },
+    payload: (cwd) => ({ session_id: 'st-sess', cwd, tool_name: 'Bash' }),
+    expect: (o, cwd) => o === null && m.readState(cwd).toolCalls === 15 },
+  { name: 'checkpoint-remind: 记忆过旧时提醒', script: 'checkpoint-remind.js',
+    setup: (cwd) => {
+      const f = m.memoryPathFor(cwd);
+      fs.writeFileSync(f, '# 记忆\n\n## 当前状态\n\n- 下一步：继续\n');
+      const old = new Date(Date.now() - 60 * 60 * 1000);
+      try { fs.utimesSync(f, old, old); } catch { /* ignore */ }
+      prepState(cwd, { toolCalls: 14 });
+    },
+    payload: (cwd) => ({ session_id: 'st-sess', cwd, tool_name: 'Bash' }),
+    expect: (o, cwd) => !!o?.additionalContext && o.additionalContext.includes('长任务心跳') && m.readState(cwd).toolCalls === 15 },
 ];
 
 let failed = 0;

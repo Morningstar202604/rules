@@ -216,6 +216,7 @@ function zcodeHookEvents(hooksDir) {
     PostToolUse: [
       mk('plan-sync.js', '同步计划到记忆文件', { matcher: 'TodoWrite' }),
       mk('track-verify.js', null, { matcher: 'Bash' }),
+      mk('checkpoint-remind.js', '长任务检查点提醒'),
     ],
     PostToolUseFailure: [mk('track-verify.js', '记录失败验证', { matcher: 'Bash' })],
     Stop: [mk('stop-guard.js', '完成度校验')],
@@ -299,7 +300,7 @@ function claudeHookEvents(hooksDir) {
     SessionStart: [mk('session-start.js')],
     UserPromptSubmit: [mk('user-prompt.js')],
     PreToolUse: [mk('guard-write.js', 'Edit|Write'), mk('guard-bash.js', 'Bash')],
-    PostToolUse: [mk('plan-sync.js', 'TodoWrite'), mk('track-verify.js', 'Bash')],
+    PostToolUse: [mk('plan-sync.js', 'TodoWrite'), mk('track-verify.js', 'Bash'), mk('checkpoint-remind.js', null)],
     Stop: [mk('stop-guard.js')],
   };
 }
