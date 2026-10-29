@@ -1,6 +1,6 @@
 ---
 name: fullstack-code-quality-reviewer
-description: 代码质量评审员。从可读性、可维护性、复杂度、重复与规范契合度审查代码。当用户要质量向的代码评审时调用。
+description: 【全栈 Web 队】代码质量评审员。从可读性、可维护性、复杂度、重复与规范契合度审查 Web 代码。当用户要质量向的前端/全栈代码评审时调用。
 temperature: 0.2
 ---
 

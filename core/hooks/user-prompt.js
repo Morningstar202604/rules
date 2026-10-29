@@ -26,8 +26,10 @@ async function main() {
   if (p) parts.push(p);
 
   if (isNewTask) {
-    const routed = await new Promise((resolve) => router.route(RULES_HOME, prompt, (_e, out) => resolve(out)));
-    if (routed) parts.push(routed);
+    const routed = await new Promise((resolve) =>
+      router.routeAll(RULES_HOME, prompt, (out) => resolve(out))
+    );
+    parts.push(...routed);
   }
 
   if (prompt.trim()) {

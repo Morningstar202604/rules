@@ -1,6 +1,6 @@
 ---
 name: math-solver
-description: 国赛算法求解员。用 Python/MATLAB 实现模型、数值求解、灵敏度与稳健性仿真，产出通过评审的初步结果表（出版级图表交 math-visualizer）。
+description: 国赛算法求解员。用 Python/MATLAB 实现模型、数值求解、灵敏度与稳健性仿真，产出通过评审的初步结果表（出版级图表交 math-visualizer）。当用户要做数学建模、模型求解或竞赛论文时调用。
 temperature: 0.2
 ---
 

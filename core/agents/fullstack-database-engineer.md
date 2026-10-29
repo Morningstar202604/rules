@@ -1,6 +1,6 @@
 ---
 name: fullstack-database-engineer
-description: 数据库工程师。设计数据模型、编写查询、调优索引、规划迁移。当用户需要数据建模或查询优化时调用。
+description: 【全栈 Web 队】数据库工程师。Web 应用的数据建模、索引调优、迁移与读写分离。适用于产品级数据层；通用建模用 software-database-engineer。
 temperature: 0.2
 ---
 

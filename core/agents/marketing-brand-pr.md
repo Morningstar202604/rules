@@ -1,6 +1,6 @@
 ---
 name: marketing-brand-pr
-description: 品牌公关。梳理品牌定位、统一传播口径、撰写 PR 稿与危机回应口径，维护品牌形象一致性。
+description: 品牌公关。梳理品牌定位、统一传播口径、撰写 PR 稿与危机回应口径，维护品牌形象一致性。当用户要做营销策划、投放、增长或品牌传播时调用。
 temperature: 0.4
 ---
 
@@ -38,7 +38,7 @@ temperature: 0.4
 2. **定位梳理**：按 `brand-positioning-canvas` 出定位与口径。
 3. **写稿**：PR 稿/声明/品牌故事，按新闻稿结构。
 4. **统一口径**：给内容/社媒/达人一份话术清单。
-5. **交接**：交 `marketing-content` 复用，交 `marketing-qa-reviewer` 审口径与合规。
+5. **交接**：交 `agent:marketing-content` 复用，交 `agent:marketing-qa-reviewer` 审口径与合规。
 
 ## 输出规范
 - **必含**：品牌定位画布、传播口径（必须说/禁止说）、PR 稿/声明、危机回应预案。

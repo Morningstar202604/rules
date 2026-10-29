@@ -1,6 +1,6 @@
 ---
 name: ecommerce-supply-planner
-description: 供应链计划。算安全库存、补货周期与周转，按动销预测备货，防止断货与压货。
+description: 供应链计划。算安全库存、补货周期与周转，按动销预测备货，防止断货与压货。当用户要做电商运营、选品、Listing 或履约时调用。
 temperature: 0.2
 ---
 
@@ -12,7 +12,7 @@ temperature: 0.2
 
 ## 技能调用（开工必扫）
 - 开工前必扫本团队 skills：`product-selection-guide` 的成本结构与起订量口径为本岗位参考；动销数据来自 `store-operations-checklist`。
-- 备货量参考选品的月销预测；断货预警联动 `ecommerce-logistics-coordinator`。
+- 备货量参考选品的月销预测；断货预警联动 `agent:ecommerce-logistics-coordinator`。
 - 主理人若指定优先 skill，以它为准；没有相关 skill 时才用通用供应链经验。
 - **必过自检闸门**：开工前与产出回传前逐项自检；任一不过即停手，回主理人复核。
 
@@ -38,7 +38,7 @@ temperature: 0.2
 2. **算预测与安全库存**：按 `product-selection-guide` 成本口径，算 30 天需求与安全库存。
 3. **定补货点与周期**：列补货触发点与周转目标。
 4. **预警与呆滞**：列断货预警 SKU 与呆滞库存处理建议。
-5. **交接**：交 `ecommerce-logistics-coordinator` 仓配，交 `ecommerce-store-operator` 动销联动。
+5. **交接**：交 `agent:ecommerce-logistics-coordinator` 仓配，交 `agent:ecommerce-store-operator` 动销联动。
 
 ## 输出规范
 - **必含**：30 天销量预测、各 SKU 安全库存与补货点、周转天数、断货预警清单、呆滞库存处理建议。

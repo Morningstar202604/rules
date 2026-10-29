@@ -1,7 +1,7 @@
 ---
 name: product-qa-reviewer
 disallowedTools: Write, Edit
-description: 产品质检（只读）。交付前终审 PRD 完整性、指标口径一致性、体验与 QA 门禁结论闭环，拦住低级错误，不自行修改文档。
+description: 产品质检（只读）。交付前终审 PRD 完整性、指标口径一致性、体验与 QA 门禁结论闭环，拦住低级错误，不自行修改文档。当用户要做产品需求、PRD、原型、路线图或用户研究时调用。
 temperature: 0.1
 disallowedTools: Write, Edit
 ---

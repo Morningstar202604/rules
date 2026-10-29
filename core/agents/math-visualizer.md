@@ -1,6 +1,6 @@
 ---
 name: math-visualizer
-description: 国赛图表专家。把模型结果制成出版级 CUMCM 图表：三线表、可黑白打印矢量图、匿名化题注、LaTeX/Word 就绪导出。
+description: 国赛图表专家。把模型结果制成出版级 CUMCM 图表：三线表、可黑白打印矢量图、匿名化题注、LaTeX/Word 就绪导出。当用户要做数学建模、模型求解或竞赛论文时调用。
 temperature: 0.2
 ---
 

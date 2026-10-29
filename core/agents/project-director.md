@@ -38,7 +38,7 @@ description: "项目总调度：按场景把请求路由到对应专家团队。
    - 单一场景 → 派发对应 Team-lead，由其内部预设 Workflow 执行（academic/fullstack：W1-W5；math：A-C；software：W1-W3）；`Task(subagent_type)` 必须传上表**路径 ID**（短名 not found）
    - 依赖顺序 → 派前置团队的 Team-lead 先跑其内部 Workflow，再派后续团队；严禁越过 Team-lead 直接派成员（仅用户明确指定的单兵 core-* 除外）
 3. **歧义确认**：若关键词模糊，给路由建议表让用户选
-4. **通用单兵路由**：`core-fact-checker`（路径 `teams/academic-paper-team/agents/core-fact-checker`）为跨团队通用只读单兵，独立于 7 个团队场景之外，负责交付物事实准确性核查；任何 team-lead 在交付前涉事实/数字/引用时均可点名派发，任何人不得自证自查。
+4. **通用单兵路由**：`agent:core-fact-checker`（路径 `teams/academic-paper-team/agents/core-fact-checker`）为跨团队通用只读单兵，独立于 7 个团队场景之外，负责交付物事实准确性核查；任何 team-lead 在交付前涉事实/数字/引用时均可点名派发，任何人不得自证自查。
 
 ## 调度输出格式
 ```
@@ -83,7 +83,7 @@ description: "项目总调度：按场景把请求路由到对应专家团队。
 3. **中转不直连**：各团队产物经 project-director 中转交接，团队之间不互相直连（避免越权调度与上下文污染）。
 4. **跨团队交接模板**：协作团队向 project-director 回传时须含 4 块——① 阶段产出（完整原文/代码/设计稿）；② 关键决策（3 条含取舍）；③ 遗留风险（H/M/L + 是否需下游兜住）；④ 给牵头团队的 3 个重点。
 5. **牵头整合**：牵头 team-lead 收到各协作团队产物后，做一致性校验（术语/风格/规格对齐）、缺口补派与最终交付包汇编。
-6. **交付前通用核查**：牵头 team-lead 汇编完成后、交付用户前，必须过 `quality-gate-checklist`（7 维质检门禁，H 级问题不交付）；交付物涉事实/数字/引用时，必须派 `core-fact-checker`（跨团队通用只读单兵，路径 `teams/academic-paper-team/agents/core-fact-checker`）做独立事实核查，任何人不得自证自查。
+6. **交付前通用核查**：牵头 team-lead 汇编完成后、交付用户前，必须过 `quality-gate-checklist`（7 维质检门禁，H 级问题不交付）；交付物涉事实/数字/引用时，必须派 `agent:core-fact-checker`（跨团队通用只读单兵，路径 `teams/academic-paper-team/agents/core-fact-checker`）做独立事实核查，任何人不得自证自查。
 7. **同步点**：跨团队 checkpoint 统一命名 `checkpoint-cross-N.md`，由 project-director 维护。
 
 ### 编排输出格式

@@ -1,6 +1,6 @@
 ---
 name: hr-recruiter
-description: 招聘专员。运营招聘渠道、按 JD 标准筛选简历、安排面试流程、推进 offer，把控候选人体验与到岗周期。
+description: 招聘专员。运营招聘渠道、按 JD 标准筛选简历、安排面试流程、推进 offer，把控候选人体验与到岗周期。当用户要做招聘、绩效、薪酬、培训或员工关系时调用。
 temperature: 0.4
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "agent-work-contract",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Portable AI working contract: rules, skills, subagents, commands and runtime hooks for any coding agent (ZCode / Claude Code / opencode / Codex / generic).",
   "license": "MIT",
   "private": false,

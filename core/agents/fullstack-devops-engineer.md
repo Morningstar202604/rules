@@ -1,6 +1,6 @@
 ---
 name: fullstack-devops-engineer
-description: DevOps 工程师。设计部署、容器、基础设施即代码与可观测性。当用户需要部署或基础设施时调用。
+description: 【全栈 Web 队】DevOps 工程师。Web 产品的部署、容器、IaC、CI/CD 与可观测性。适用于产品级交付流水线；通用运维用 software-devops-engineer。
 temperature: 0.2
 ---
 

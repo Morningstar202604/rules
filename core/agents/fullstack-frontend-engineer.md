@@ -1,6 +1,6 @@
 ---
 name: fullstack-frontend-engineer
-description: 前端工程师。构建生产级前端：组件架构、状态管理、路由、数据获取与构建优化。当用户需要前端实现或前端架构时调用。
+description: 【全栈 Web 队】前端工程师。Web 产品前端：组件架构、状态管理、路由、数据获取、构建优化与 SSR。适用于产品级前端；通用页面用 software-frontend-engineer。
 temperature: 0.2
 ---
 

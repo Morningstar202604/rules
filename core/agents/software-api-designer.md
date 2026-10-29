@@ -1,6 +1,6 @@
 ---
 name: software-api-designer
-description: API 设计师。设计 REST/GraphQL 契约、schema、校验规则、错误模型与版本策略。当用户需要 API 设计或规范时调用。
+description: 【通用研发队】API 设计师。设计 REST/GraphQL 契约、schema、校验规则、错误模型与版本策略。当用户需要 API 设计或规范时调用。
 temperature: 0.2
 ---
 

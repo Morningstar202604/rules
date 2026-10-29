@@ -1,6 +1,6 @@
 ---
 name: product-roadmap-planner
-description: 路线图规划。用 RICE/Kano/MoSCoW 模型对候选需求排优先级，识别依赖与关键路径，切分版本节奏，输出可滚动复盘的季度路线图。
+description: 路线图规划。用 RICE/Kano/MoSCoW 模型对候选需求排优先级，识别依赖与关键路径，切分版本节奏，输出可滚动复盘的季度路线图。当用户要做产品需求、PRD、原型、路线图或用户研究时调用。
 temperature: 0.2
 ---
 

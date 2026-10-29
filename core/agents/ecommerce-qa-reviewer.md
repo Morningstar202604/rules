@@ -1,7 +1,7 @@
 ---
 name: ecommerce-qa-reviewer
 disallowedTools: Write, Edit
-description: 电商质检（只读）。审核详情页/促销的极限词、虚假宣传、假折扣与资质合规，对电商产出做最终门禁，不改内容。
+description: 电商质检（只读）。审核详情页/促销的极限词、虚假宣传、假折扣与资质合规，对电商产出做最终门禁，不改内容。当用户要做电商运营、选品、Listing 或履约时调用。
 temperature: 0.1
 disallowedTools: Write, Edit
 ---

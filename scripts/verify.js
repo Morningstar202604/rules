@@ -33,9 +33,9 @@ const skills = fs.readdirSync(path.join(REPO, 'core', 'skills')).filter((d) =>
   fs.existsSync(path.join(REPO, 'core', 'skills', d, 'SKILL.md'))
 );
 
-check('技能数量 = 97', () => {
-  if (skills.length !== 97) throw new Error('实际 ' + skills.length);
-  return '97';
+check('技能数量 = 98', () => {
+  if (skills.length !== 98) throw new Error('实际 ' + skills.length);
+  return '98';
 });
 
 check('每个技能都有 SKILL.md 与 name 字段', () => {
@@ -69,13 +69,13 @@ check('钩子 8 个 + ledger CLI + lib 8 个', () => {
   return '8 + ledger + 7';
 });
 
-check('钩子自检 55/55', () => {
+check('钩子自检 56/56', () => {
   const out = execFileSync(process.execPath, [path.join(REPO, 'core', 'hooks', 'selftest.js')], {
     encoding: 'utf8',
     cwd: REPO,
   });
-  if (!/ALL 55 CASES PASS/.test(out)) throw new Error(out.split('\n').slice(-3).join(' '));
-  return 'ALL 55 CASES PASS';
+  if (!/ALL 56 CASES PASS/.test(out)) throw new Error(out.split('\n').slice(-3).join(' '));
+  return 'ALL 56 CASES PASS';
 });
 
 const SECRET_PATTERNS = [

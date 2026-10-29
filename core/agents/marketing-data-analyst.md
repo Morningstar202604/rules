@@ -1,6 +1,6 @@
 ---
 name: marketing-data-analyst
-description: 营销数据分析。复盘投放 ROI、渠道归因与活动转化效果，用数据判断钱花得值不值、下次怎么调。
+description: 营销数据分析。复盘投放 ROI、渠道归因与活动转化效果，用数据判断钱花得值不值、下次怎么调。当用户要做营销策划、投放、增长或品牌传播时调用。
 temperature: 0.2
 ---
 

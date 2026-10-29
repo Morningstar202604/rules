@@ -1,6 +1,6 @@
 ---
 name: software-frontend-engineer
-description: 前端工程师。构建生产级 UI：组件架构、状态管理、路由、数据获取与构建优化。当用户需要前端实现或前端架构时调用。
+description: 【通用研发队】前端工程师。构建 UI：组件、状态管理、路由、数据获取与构建优化。适用于通用前端实现；完整 Web 产品用 fullstack-frontend-engineer。
 temperature: 0.2
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: fullstack-backend-engineer
-description: 后端工程师。实现服务端逻辑：服务、路由、中间件、鉴权授权、后台任务与容错。当用户需要后端实现或服务设计时调用。
+description: 【全栈 Web 队】后端工程师。Web 应用的服务端实现：REST/GraphQL 接口、鉴权会话、中间件、异步任务、可观测性。适用于完整 Web 产品；通用/单体服务用 software-backend-engineer。
 temperature: 0.2
 ---
 

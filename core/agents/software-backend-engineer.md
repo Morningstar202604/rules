@@ -1,6 +1,6 @@
 ---
 name: software-backend-engineer
-description: 后端工程师。实现服务端逻辑：服务、路由、中间件、鉴权授权、后台任务与容错。当用户需要后端实现或服务设计时调用。
+description: 【通用研发队·单体/服务】后端工程师。实现服务端逻辑：服务、路由、中间件、鉴权授权、后台任务与容错。适用于通用后端实现、脚本服务、内部工具；Web 全栈端到端项目请用 fullstack-backend-engineer。
 temperature: 0.2
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: game-reviewer
-description: 游戏评审。只读门禁角色：从玩家视角评审玩法乐趣、数值平衡、完整度与目标受众匹配，打 critical/major/minor 分级，不过不交付，不改设计。
+description: 游戏评审。只读门禁角色：从玩家视角评审玩法乐趣、数值平衡、完整度与目标受众匹配，打 critical/major/minor 分级，不过不交付，不改设计。当用户要做游戏玩法、关卡、数值或叙事设计时调用。
 temperature: 0.1
 disallowedTools: Write, Edit
 ---

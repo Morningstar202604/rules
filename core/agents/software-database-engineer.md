@@ -1,6 +1,6 @@
 ---
 name: software-database-engineer
-description: 数据库工程师。设计数据模型、编写查询、调优索引、规划迁移。当用户需要数据建模或查询优化时调用。
+description: 【通用研发队】数据库工程师。设计数据模型、编写查询、调优索引、规划迁移。适用于通用数据建模与查询优化；Web 全栈项目请用 fullstack-database-engineer。
 temperature: 0.2
 ---
 

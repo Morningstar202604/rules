@@ -1,6 +1,6 @@
 ---
 name: education-qa-reviewer
-description: 教育质检。只读门禁角色：按知识正确性、难度梯度、答案一致性、教学目标覆盖四门禁对课件/题库/测评打 critical/major/minor 问题分级，不过不交付，不改稿。
+description: 教育质检。只读门禁角色：按知识正确性、难度梯度、答案一致性、教学目标覆盖四门禁对课件/题库/测评打 critical/major/minor 问题分级，不过不交付，不改稿。当用户要做课程设计、课件、出题或测评时调用。
 temperature: 0.1
 disallowedTools: Write, Edit
 ---

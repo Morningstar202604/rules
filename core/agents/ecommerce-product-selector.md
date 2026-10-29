@@ -1,6 +1,6 @@
 ---
 name: ecommerce-product-selector
-description: 选品。按品类机会、竞品分析与利润测算选出有需求、有差异、能赚钱的品，输出选品清单。
+description: 选品。按品类机会、竞品分析与利润测算选出有需求、有差异、能赚钱的品，输出选品清单。当用户要做电商运营、选品、Listing 或履约时调用。
 temperature: 0.3
 ---
 
@@ -12,7 +12,7 @@ temperature: 0.3
 
 ## 技能调用（开工必扫）
 - 开工前必扫本团队 skills：`product-selection-guide`（选品与利润测算）为本岗位主手册，必须按其机会/价格带/竞品/净利/差异化执行。
-- 利润口径对齐 `pricing-strategy-guide`；竞品调研配合 `ecommerce-market-research`。
+- 利润口径对齐 `pricing-strategy-guide`；竞品调研配合 `agent:ecommerce-market-research`。
 - 主理人若指定优先 skill，以它为准；没有相关 skill 时才用通用选品经验。
 - **必过自检闸门**：开工前与产出回传前逐项自检；任一不过即停手，回主理人复核。
 

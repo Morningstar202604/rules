@@ -1,6 +1,8 @@
 'use strict';
 
-// 新任务首轮做一次技能路由：调用 skill-router 的离线 TF-IDF，
+// 新任务首轮做一次技能路由 + 角色路由：
+//   - skill-router：用哪些技能
+//   - agent-router：派给哪支子代理战队（team-lead）
 // 只在本轮判定为「新任务」时执行，避免每轮付 Python 启动成本。
 // 失败一律静默降级——路由是增强，不是门禁，绝不能因它阻塞对话。
 
@@ -9,12 +11,12 @@ const path = require('node:path');
 const fs = require('node:fs');
 
 const TIMEOUT_MS = 2500;
-const MAX_LINES = 4;
+const MAX_LINES = 3;
 
-function findRouter(rulesHome) {
+function findScript(rulesHome, skillName, fileName) {
   const candidates = [
-    path.join(rulesHome, 'skills', 'skill-router', 'scripts', 'skill_router.py'),
-    path.join(rulesHome, 'core', 'skills', 'skill-router', 'scripts', 'skill_router.py'),
+    path.join(rulesHome, 'skills', skillName, 'scripts', fileName),
+    path.join(rulesHome, 'core', 'skills', skillName, 'scripts', fileName),
   ];
   return candidates.find((p) => fs.existsSync(p)) || null;
 }
@@ -24,25 +26,65 @@ function findSkillsDir(rulesHome) {
   return candidates.find((p) => fs.existsSync(p)) || null;
 }
 
-function route(rulesHome, task, cb) {
-  const script = findRouter(rulesHome);
-  const skillsDir = findSkillsDir(rulesHome);
-  if (!script || !skillsDir) return cb(null);
+function findAgentsDir(rulesHome) {
+  const candidates = [path.join(rulesHome, 'agents'), path.join(rulesHome, 'core', 'agents')];
+  return candidates.find((p) => fs.existsSync(p)) || null;
+}
 
+function run(args, cb) {
   execFile(
     process.platform === 'win32' ? 'python' : 'python3',
-    [script, task.slice(0, 300), '--skills-dir', skillsDir, '--top', '3'],
+    args,
     { timeout: TIMEOUT_MS, windowsHide: true, maxBuffer: 64 * 1024 },
-    (err, stdout) => {
-      if (err || !stdout) return cb(null);
-      const lines = String(stdout).split(/\r?\n/).filter((l) => l.trim());
-      const verdict = lines.find((l) => /^verdict:/.test(l));
-      if (!verdict || /NO SKILL NEEDED/i.test(verdict)) return cb(null);
-      const ranked = lines.filter((l) => /^\s+[\d.]+\s+/.test(l)).slice(0, MAX_LINES);
-      if (!ranked.length) return cb(null);
-      cb(null, ['【技能路由】候选（按相关度）：', ...ranked].join('\n'));
-    }
+    (err, stdout) => cb(err ? null : String(stdout || ''))
   );
 }
 
-module.exports = { route };
+function routeSkills(rulesHome, task, cb) {
+  const script = findScript(rulesHome, 'skill-router', 'skill_router.py');
+  const skillsDir = findSkillsDir(rulesHome);
+  if (!script || !skillsDir) return cb(null);
+
+  run([script, task.slice(0, 300), '--skills-dir', skillsDir, '--top', '3'], (stdout) => {
+    if (!stdout) return cb(null);
+    const lines = stdout.split(/\r?\n/).filter((l) => l.trim());
+    const verdict = lines.find((l) => /^verdict:/.test(l));
+    if (!verdict || /NO SKILL NEEDED/i.test(verdict)) return cb(null);
+    const ranked = lines.filter((l) => /^\s+[\d.]+\s+/.test(l)).slice(0, MAX_LINES);
+    if (!ranked.length) return cb(null);
+    cb(['【技能路由】候选（按相关度）：', ...ranked].join('\n'));
+  });
+}
+
+function routeAgents(rulesHome, task, cb) {
+  const script = findScript(rulesHome, 'agent-router', 'agent_router.py');
+  const agentsDir = findAgentsDir(rulesHome);
+  if (!script || !agentsDir) return cb(null);
+
+  run([script, task.slice(0, 300), '--agents-dir', agentsDir, '--top', '2'], (stdout) => {
+    if (!stdout) return cb(null);
+    const lines = stdout.split(/\r?\n/).filter((l) => l.trim());
+    const verdict = lines.find((l) => /^verdict:/.test(l));
+    if (!verdict || /NO AGENT NEEDED/i.test(verdict)) return cb(null);
+    const ranked = lines.filter((l) => /^\s+[\d.]+\s+/.test(l)).slice(0, 2);
+    if (!ranked.length) return cb(null);
+    cb([
+      '【角色派发】新任务必须派给子代理执行，不得自己在主线程硬做。建议战队：',
+      ...ranked,
+      '用法：Agent(subagent_type="<team-lead>")，由 lead 在队内拆分子角色；跨领域任务可并行派多个 lead。',
+    ].join('\n'));
+  });
+}
+
+function routeAll(rulesHome, task, cb) {
+  let done = 0;
+  const out = [];
+  const finish = () => {
+    done += 1;
+    if (done === 2) cb(out.filter(Boolean));
+  };
+  routeAgents(rulesHome, task, (s) => { if (s) out.push(s); finish(); });
+  routeSkills(rulesHome, task, (s) => { if (s) out.push(s); finish(); });
+}
+
+module.exports = { routeAll, routeSkills, routeAgents };

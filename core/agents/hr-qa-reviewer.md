@@ -1,7 +1,7 @@
 ---
 name: hr-qa-reviewer
 disallowedTools: Write, Edit
-description: HR 质检（只读）。交付前终审 JD 合规无歧视、面试评分有证据且一致、绩效口径统一，拦住材料漏洞，不自行修改。
+description: HR 质检（只读）。交付前终审 JD 合规无歧视、面试评分有证据且一致、绩效口径统一，拦住材料漏洞，不自行修改。当用户要做招聘、绩效、薪酬、培训或员工关系时调用。
 temperature: 0.1
 disallowedTools: Write, Edit
 ---

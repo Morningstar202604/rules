@@ -1,6 +1,6 @@
 ---
 name: software-security-engineer
-description: 安全工程师。审计 OWASP Top 10、注入、XSS、鉴权缺陷、依赖漏洞与密钥处理。当用户需要安全审查时调用。
+description: 【通用研发队】安全工程师。审计 OWASP Top 10、注入、XSS、鉴权缺陷、依赖漏洞与密钥处理。适用于独立安全评审与加固；Web 全栈项目请用 fullstack-security-engineer。
 temperature: 0.2
 disallowedTools: Write, Edit
 ---

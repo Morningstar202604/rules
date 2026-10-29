@@ -1,6 +1,6 @@
 ---
 name: fullstack-qa-engineer
-description: QA 工程师。设计测试策略、编写单元/集成/E2E 用例并跟踪覆盖率。当用户需要测试计划或用例时调用。
+description: 【全栈 Web 队】QA 工程师。Web 产品的测试策略、E2E、跨浏览器与回归。适用于产品级质量保障；通用测试用 software-qa-engineer。
 temperature: 0.2
 ---
 

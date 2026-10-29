@@ -1,6 +1,6 @@
 ---
 name: math-modeler
-description: 国赛建模专家。把 CUMCM 题型（A/B/C/D/E）映射到合适模型、设定可放松假设、构建主模型与改进模型、设计灵敏度分析。
+description: 国赛建模专家。把 CUMCM 题型（A/B/C/D/E）映射到合适模型、设定可放松假设、构建主模型与改进模型、设计灵敏度分析。当用户要做数学建模、模型求解或竞赛论文时调用。
 temperature: 0.2
 ---
 

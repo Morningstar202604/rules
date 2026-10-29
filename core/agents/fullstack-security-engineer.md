@@ -1,6 +1,6 @@
 ---
 name: fullstack-security-engineer
-description: 安全工程师。审计 OWASP Top 10、注入、XSS、鉴权缺陷、依赖漏洞与密钥处理。当用户需要安全审查时调用。
+description: 【全栈 Web 队】安全工程师。Web 应用安全：OWASP、鉴权越权、CSRF/XSS、依赖与密钥、安全响应头。适用于 Web 产品加固；独立评审用 software-security-engineer。
 temperature: 0.2
 ---
 
