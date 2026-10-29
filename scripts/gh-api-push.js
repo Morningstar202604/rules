@@ -60,7 +60,21 @@ function listFiles() {
   const files = listFiles();
   console.log('files:', files.length);
 
+  // 关键：Git Data API 的 tree 是「叠加」语义，删除文件必须显式传 sha:null，
+  // 否则远端会保留已删文件（这是运行态垃圾清理后仍残留的原因）。
+  const remoteTree = await call('GET', `${repo}/git/trees/${baseTree}?recursive=1`);
+  const remotePaths = new Set(
+    (remoteTree.body.tree || []).filter((x) => x.type === 'blob').map((x) => x.path)
+  );
+  const localPaths = new Set(files);
+  const deletions = [...remotePaths].filter((p) => !localPaths.has(p));
+
   const tree = [];
+  for (const p of deletions) {
+    tree.push({ path: p, mode: '100644', type: 'blob', sha: null });
+  }
+  if (deletions.length) console.log('deletions:', deletions.length);
+
   for (const f of files) {
     const abs = path.join(ROOT, f);
     if (!fs.existsSync(abs)) continue;
