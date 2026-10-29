@@ -26,15 +26,15 @@ function markTurnStart(cwd, payload, prompt) {
 // 标题索引只在回顾类请求时才给，避免每轮重复占上下文。
 // 「当前状态」只抽 3 行（下一步 / 当前切片 / 上一步结果），长任务断点恢复靠它。
 function extractCurrentState(body) {
-  const m = body.match(/^##\s*当前状态\s*$([\s\S]*?)(?=^##\s|\Z)/m);
+  // JS 不支持 \Z：用 (?=^##\s|$) 收尾；m 模式下 $ 匹配行尾。
+  const m = body.match(/^##\s*当前状态\s*$([\s\S]*?)(?=^##\s|(?![\s\S]))/m);
   if (!m) return [];
-  const keep = ['下一步', '当前切片', '上一步结果'];
   const out = [];
   for (const line of m[1].split(/\r?\n/)) {
     const kv = line.match(/^[-*]\s*(下一步|当前切片|上一步结果)\s*[:：]\s*(.+)$/);
     if (kv && kv[2].trim()) out.push(`${kv[1]}：${kv[2].trim().slice(0, 120)}`);
   }
-  return out.filter((_, i) => i < keep.length);
+  return out.slice(0, 3);
 }
 
 function build(cwd, payload, prompt) {
