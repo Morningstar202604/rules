@@ -4,3 +4,8 @@ node_modules/
 *.log
 .DS_Store
 Thumbs.db
+
+# 运行态目录（安装后由钩子生成，不入库）
+core/memory/
+.tmp-gh.txt
+.tmp-*.txt
