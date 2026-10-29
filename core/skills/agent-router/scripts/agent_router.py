@@ -245,6 +245,12 @@ def detect_agents_dir(explicit: str | None) -> Path | None:
 
 
 def main(argv: list[str]) -> int:
+    # Windows 控制台默认 cp1252/cp936，打印中文会 UnicodeEncodeError。强制 UTF-8。
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, OSError):
+        pass
     ap = argparse.ArgumentParser(description="Route a task to the best-matching subagent team lead.")
     ap.add_argument("task")
     ap.add_argument("--agents-dir")

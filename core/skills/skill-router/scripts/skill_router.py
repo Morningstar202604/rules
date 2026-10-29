@@ -334,6 +334,12 @@ def detect_skills_dir(explicit: str | None) -> Path:
 
 
 def main(argv: list[str]) -> int:
+    # Windows 控制台默认 cp1252/cp936，打印中文会 UnicodeEncodeError。强制 UTF-8。
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, OSError):
+        pass
     ap = argparse.ArgumentParser(description="Decide which skills a task needs (deterministic, offline)")
     ap.add_argument("task", nargs="?", default="", help="the task text, quoted (empty in --hook mode)")
     ap.add_argument("--skills-dir", default="", help="skills directory (default: auto-detect)")
