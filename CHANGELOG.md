@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.6.0 — 2026-10-29
+
+### 新增
+
+- **`ledger decision` 命令**：把纠偏与关键决策沉淀到记忆文件「关键决策与依据」，字段为「用户原方案 / 我的判断 / 采用方案 / 依据」。跨会话可读，同类判断不重复推导。AGENTS.md 九之四第 5 条要求纠偏必须留痕。
+- **严格检查点模式**：`cli/config.json` 的 `checkpoints.strict`（默认 `false`）。开启后 `stop-guard` 在 active 阶段发现「记忆文件 >60 分钟未更新 + 仍有未完成待办」会阻断收尾，强制先落检查点。与 `checkpoint-remind`（只提醒不阻断）互补。
+- **高成本任务的假设执行窗口**：`intent-recognition` 新增章节。不可逆操作 / 预计 >1 天 / 高歧义时，在第一条消息最前面放 5 行内「【执行假设】目标 / 范围 / 最可能错的 1-2 条假设」，然后**立刻开始做不等回复**，给用户一个零成本纠错窗口。
+
+### 修改
+
+- `install.js`：写入 `checkpoints.strict: false` 默认值。
+- `stop-guard.js`：新增 `strictCheckpointsEnabled()` 与 strict 分支；导出该函数供自检。
+- `ledger.js`：新增 `addDecision()` 并导出。
+- `decision-log` 技能：改为首选 `ledger decision` 命令，补纠偏记录字段对照表。
+- `AGENTS.md`：九之四第 5 条「纠偏要留痕」；九之二补「高成本任务加一个纠错窗口」。
+- `docs/HOOKS.md`：补 `decision` 命令、`checkpoint-remind`、strict 模式说明。
+- `selftest.js`：新增 2 例（decision 写入 / strict 开关默认值），58→60。
+- `scripts/verify.js`：自检计数 58→60。
+
 ## 1.5.0 — 2026-10-29
 
 ### 新增

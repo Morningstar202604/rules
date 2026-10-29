@@ -1,11 +1,29 @@
 'use strict';
 
 const fs = require('node:fs');
+const path = require('node:path');
 const net = require('node:net');
 const m = require('./lib/memory.js');
 const cleanupCheck = require('./cleanup-check.js');
 
 const MAX_ROUNDS = 3;
+
+// 严格检查点模式：config.json 里 `checkpoints.strict: true` 时启用。
+// 默认关闭——普通问答被拦会烦人；长期跑的任务可自行打开。
+const STRICT_STALE_MS = 60 * 60 * 1000;
+
+function strictCheckpointsEnabled() {
+  try {
+    const cfgPath = path.join(m.RULES_HOME, 'cli', 'config.json');
+    if (!fs.existsSync(cfgPath)) return false;
+    let raw = fs.readFileSync(cfgPath, 'utf8');
+    if (raw.charCodeAt(0) === 0xfeff) raw = raw.slice(1);
+    const cfg = JSON.parse(raw);
+    return !!(cfg.checkpoints && cfg.checkpoints.strict === true);
+  } catch {
+    return false;
+  }
+}
 
 function portOpen(port, timeoutMs = 120) {
   return new Promise((resolve) => {
@@ -146,6 +164,19 @@ async function runGuard(payload) {
     );
   }
 
+  // 严格检查点模式：长任务跑了很久但记忆文件一直没更新，且还有未完成待办。
+  // 只在 active 阶段、确实有待办时生效，避免无任务的问答被误拦。
+  if (!memoryStale && openTodos.length && strictCheckpointsEnabled() && mtimeMs) {
+    const age = Date.now() - mtimeMs;
+    if (age > STRICT_STALE_MS) {
+      reasons.push(
+        `严格检查点模式：记忆文件已 ${Math.round(age / 60000)} 分钟未更新，但还有 ${openTodos.length} 项待办。`,
+        '先把「## 当前状态」更新为：当前切片、上一步结果、下一步，然后继续。',
+        '（关闭方式：cli/config.json 里 checkpoints.strict 设为 false）'
+      );
+    }
+  }
+
   if (!reasons.length) {
     if (rounds) m.writeState(cwd, { ...state, stopRounds: 0 });
     // 未进入收尾阶段时不串联 cleanup-check：中途清理会破坏现场并拖慢每一轮。
@@ -172,4 +203,4 @@ async function main() {
 
 if (require.main === module) main();
 
-module.exports = { runGuard };
+module.exports = { runGuard, strictCheckpointsEnabled };

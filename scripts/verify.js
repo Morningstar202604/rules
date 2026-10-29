@@ -69,13 +69,13 @@ check('钩子 9 个 + ledger CLI + lib 8 个', () => {
   return '9 + ledger + 8';
 });
 
-check('钩子自检 58/58', () => {
+check('钩子自检 60/60', () => {
   const out = execFileSync(process.execPath, [path.join(REPO, 'core', 'hooks', 'selftest.js')], {
     encoding: 'utf8',
     cwd: REPO,
   });
-  if (!/ALL 58 CASES PASS/.test(out)) throw new Error(out.split('\n').slice(-3).join(' '));
-  return 'ALL 58 CASES PASS';
+  if (!/ALL 60 CASES PASS/.test(out)) throw new Error(out.split('\n').slice(-3).join(' '));
+  return 'ALL 60 CASES PASS';
 });
 
 const SECRET_PATTERNS = [

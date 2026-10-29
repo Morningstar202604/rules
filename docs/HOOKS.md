@@ -62,9 +62,31 @@ node hooks/ledger.js add-proc --cmd "pnpm dev" --pid 1234 --port 5173
 node hooks/ledger.js rm-proc --pid 1234 | --port 5173 | --all
 node hooks/ledger.js add-file --path src/app.tsx
 node hooks/ledger.js artifact --note "dist/"
+node hooks/ledger.js decision --title "..." --original "..." --judgment "..." --chosen "..." --why "..."
 ```
 
-除 `status` 外每次变更都会同步渲染记忆文件的 `<!-- ledger:start --> ... <!-- ledger:end -->` 区块。状态字段：`projectPhase`、`runningProcs`、`changedFiles`、`artifacts`。
+`decision` 把纠偏与关键决策追加到记忆文件的 `## 关键决策与依据` 区块（跨会话可读），用于记录「用户原方案 / 我的判断 / 采用方案 / 依据」。按 AGENTS.md §五 第 18 条推翻用户方案后必须记一条。
+
+除 `status` 与 `decision` 外每次变更都会同步渲染记忆文件的 `<!-- ledger:start --> ... <!-- ledger:end -->` 区块。状态字段：`projectPhase`、`runningProcs`、`changedFiles`、`artifacts`。
+
+### checkpoint-remind.js（PostToolUse）
+
+长任务心跳。每 15 次工具调用检查一次记忆文件的 mtime：
+
+- 超过 25 分钟未更新 → 提醒写「## 当前状态」（当前切片 / 上一步结果 / 下一步）。
+- 45 分钟冷却，不重复刷屏。
+
+它与 `stop-guard` 的严格检查点模式互补：`checkpoint-remind` 是**提醒**（不阻断），strict 模式是**门禁**（阻断收尾）。
+
+### 严格检查点模式（配置开关）
+
+`cli/config.json`：
+
+```json
+{ "checkpoints": { "strict": false } }
+```
+
+设为 `true` 后，`stop-guard` 在 active 阶段发现「记忆文件超过 60 分钟未更新 + 仍有未完成待办」会阻断收尾，要求先落检查点。默认关闭——普通问答被拦会烦人；长期跑的任务建议打开。
 
 ### cleanup-check.js（被 stop-guard 在 closing 阶段调用，也可独立运行）
 

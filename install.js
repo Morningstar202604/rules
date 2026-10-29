@@ -279,6 +279,8 @@ function mergeZcodeConfig(home, manifest) {
   cfg.toolConcurrency = { ...(cfg.toolConcurrency || {}), maxConcurrency: Math.max(Number(cfg.toolConcurrency && cfg.toolConcurrency.maxConcurrency) || 0, 16) };
   cfg.features = { compact: true, rewind: true, subagent: true, memory: true, skill: true, mcp: true, ...(cfg.features || {}) };
   cfg.memory = { use: true, ...(cfg.memory || {}) };
+  // 严格检查点默认关闭：只在长任务时才值得开，见 docs/HOOKS.md。
+  cfg.checkpoints = { strict: false, ...(cfg.checkpoints || {}) };
 
   writeJson(cfgPath, cfg, manifest);
   log('  + 钩子已注册到 cli/config.json（' + Object.keys(ours).join(', ') + '）');

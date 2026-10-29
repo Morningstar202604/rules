@@ -71,6 +71,33 @@ function addArtifact(cwd, note) {
   });
 }
 
+// 纠偏与关键决策沉淀：追加到记忆文件「## 关键决策与依据」区块。
+// 价值在跨会话一致——下次不会再犯同一个判断偏差。
+function addDecision(cwd, { title, original, judgment, chosen, why }) {
+  const file = m.memoryPathFor(cwd);
+  const body = m.readText(file) || '# 工作区记忆文件\n';
+  const at = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const entry = [
+    '',
+    `### D-${at} ${String(title || '未命名决策').slice(0, 80)}`,
+    `- 用户原方案：${String(original || '-').slice(0, 300)}`,
+    `- 我的判断：${String(judgment || '-').slice(0, 300)}`,
+    `- 采用方案：${String(chosen || '-').slice(0, 300)}`,
+    `- 依据：${String(why || '-').slice(0, 300)}`,
+  ].join('\n');
+
+  let next;
+  const re = /^(##\s*关键决策与依据\s*$)([\s\S]*?)(?=^##\s|(?![\s\S]))/m;
+  if (re.test(body)) {
+    next = body.replace(re, (_a, head, mid) => `${head}\n${mid.replace(/\s*$/, '')}${entry}\n\n`);
+  } else {
+    next = `${body.replace(/\s*$/, '')}\n\n## 关键决策与依据\n${entry}\n`;
+  }
+  m.ensureDir(path.dirname(file));
+  fs.writeFileSync(file, next, 'utf8');
+  return { file, title: String(title || '').slice(0, 80) };
+}
+
 function snapshot(cwd) {
   const s = stateOf(cwd);
   const open = Array.isArray(s.openTodos) ? s.openTodos.filter(Boolean) : [];
@@ -188,8 +215,17 @@ function main() {
       if (!args.note) throw new Error('artifact 需要 --note');
       addArtifact(cwd, args.note);
       break;
+    case 'decision': {
+      if (!args.title) throw new Error('decision 需要 --title');
+      const r = addDecision(cwd, {
+        title: args.title, original: args.original, judgment: args.judgment,
+        chosen: args.chosen, why: args.why,
+      });
+      process.stdout.write(`决策已记录：${r.title}\n→ ${r.file}\n`);
+      return;
+    }
     default:
-      throw new Error(`未知命令：${cmd}（status|phase|add-proc|rm-proc|add-file|artifact）`);
+      throw new Error(`未知命令：${cmd}（status|phase|add-proc|rm-proc|add-file|artifact|decision）`);
   }
   snap = syncMarkdown(cwd);
   process.stdout.write(format(snap) + '\n');
@@ -204,4 +240,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { stateOf, setPhase, addProc, removeProc, addFile, addArtifact, snapshot, syncMarkdown, format, render, main, LEDGER_START, LEDGER_END };
+module.exports = { stateOf, setPhase, addProc, removeProc, addFile, addArtifact, addDecision, snapshot, syncMarkdown, format, render, main, LEDGER_START, LEDGER_END };

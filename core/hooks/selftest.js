@@ -252,6 +252,30 @@ const CASES = [
     setup: (cwd) => prepState(cwd, {}),
     payload: (cwd) => ({ session_id: 'st-sess', cwd }),
     expect: (o) => o === null },
+  { name: 'stop-guard: 严格检查点模式开关可读且默认关闭', script: 'stop-guard.js',
+    setup: () => { /* 依赖真实 cli/config.json，不伪造 */ },
+    payload: (cwd) => ({ session_id: 'st-sess', cwd }),
+    expect: (o) => {
+      const { strictCheckpointsEnabled } = require('./stop-guard.js');
+      const v = strictCheckpointsEnabled();
+      // 返回值必须是布尔，且默认（未配置 checkpoints.strict=true）为 false
+      if (typeof v !== 'boolean') throw new Error('非布尔: ' + typeof v);
+      if (v !== false) throw new Error('测试环境不应启用 strict');
+      return o === null;
+    } },
+  { name: 'ledger decision: 追加到关键决策区块', script: 'stop-guard.js',
+    setup: (cwd) => {
+      const ledger = require('./lib/ledger.js');
+      ledger.addDecision(cwd, {
+        title: 'T1', original: '原方案', judgment: '判断', chosen: '采用', why: '依据',
+      });
+    },
+    payload: (cwd) => ({ session_id: 'st-sess', cwd }),
+    expect: (o, cwd) => {
+      const body = m.readText(m.memoryPathFor(cwd));
+      return body.includes('## 关键决策与依据') && body.includes('T1')
+        && body.includes('用户原方案：原方案') && body.includes('采用方案：采用');
+    } },
   { name: 'stop-guard: 用户喊停时 skipGuard 放行且计数归零', script: 'stop-guard.js',
     setup: (cwd) => prepState(cwd, { skipGuard: true, openTodos: ['不该阻断'], stopRounds: 2 }),
     payload: (cwd) => ({ session_id: 'st-sess', cwd }),
