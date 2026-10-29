@@ -31,11 +31,15 @@ while IFS=$'\t' read -r platform owner url; do
   echo "== push $platform/$owner =="
   ok=0
   for attempt in 1 2 3; do
-    if git -C "$REPO_DIR" push "$url" "HEAD:refs/heads/$BRANCH" 2>&1 | sed -E 's#https://[^@]*@#https://***@#g'; then
+    # 注意：不能写 `git push ... | sed`，管道退出码取的是 sed，会把失败当成功。
+    out=$(git -C "$REPO_DIR" push "$url" "HEAD:refs/heads/$BRANCH" 2>&1)
+    rc=$?
+    printf '%s\n' "$out" | sed -E 's#https://[^@]*@#https://***@#g'
+    if [ $rc -eq 0 ]; then
       ok=1
       break
     fi
-    echo "!! 第 $attempt 次推送失败：$platform/$owner，退避后重试" >&2
+    echo "!! 第 $attempt 次推送失败：$platform/$owner（exit=$rc），退避后重试" >&2
     sleep $((attempt * 20))
   done
   [ $ok = 1 ] || { echo "!! push 失败：$platform/$owner" >&2; FAILED=$((FAILED+1)); }
