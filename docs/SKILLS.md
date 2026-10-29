@@ -1,4 +1,4 @@
-# 技能清单（96）
+# 技能清单（97）
 
 安装后位于 `<安装目录>/skills/`。触发词与完整流程见各目录内的 `SKILL.md`。
 
@@ -36,7 +36,7 @@
 | `delivery-quality-bar` | 定义并执行交付质量标准：验收标准、回归验证、文档同步、可回滚、可追溯。触发：交付前自检、质量门禁、代码评审前、发布前。 |
 | `design-brief-interpreter` | 把模糊的视觉设计需求转成可校验规格：画布尺寸、构图、配色与文字层级。 |
 | `diagram-builder-pro` | 专业架构图与流程图绘制 skill。绘制系统架构图、微服务架构、网络拓扑图、业务流程图、数据流图、时序图、状态机、ER图等。支持 show_widget 内联 SVG 渲染与 Mermaid 代码… |
-| `discernment-nudge` | > |
+| `discernment-nudge` | After a substantive answer or draft the user may act on (advice, plans, proposals, estimates, anal… |
 | `doc-coauthoring` | Guides a structured co-authoring workflow for docs, proposals, technical specs and decision docs: … |
 | `docker` | Use when writing or debugging Dockerfiles, docker-compose services, container networking, image si… |
 | `docker-development` | Docker and container development agent skill and plugin for Dockerfile optimization, docker-compos… |
@@ -52,6 +52,7 @@
 | `git-workflow` | Use when performing git operations 鈥?commits, branches, rebases, merges, conflict resolution, hist… |
 | `github-actions-advanced` | GitHub Actions 高级 Workflow 工程化指南。当需要编写/优化 CI/CD、配置 OIDC 云认证、复用 reusable workflow、矩阵构建、依赖缓存、密钥与环境保护… |
 | `incremental-refactor` | 安全地重构既有代码：小步改动、行为不变、测试护航、可随时停下。触发：重构、拆分模块、替换实现、清理技术债。 |
+| `intent-recognition` | 开工前把「他想要什么、这个项目是什么」问清楚：目标、定位、干系人、约束、验收。 |
 | `internal-comms` | Templates and guidance for internal communications: status reports, leadership updates, newsletter… |
 | `master-checklist` | 主理人工作契约 + 能力最大化指令 + 分类执行清单：开工先拉满、交付带三清单。 |
 | `mcp-builder` | Guide for building high-quality MCP (Model Context Protocol) servers connecting LLMs to external s… |
@@ -66,7 +67,7 @@
 | `react-best-practices` | React and Next.js performance optimization guidelines from Vercel Engineering. This skill should b… |
 | `repo-cartography` | 快速测绘陌生仓库：技术栈、目录职责、入口、构建与测试命令、约定与风险点，产出一页地图。触发：接手项目、进入新仓库、评审前摸底、问这个项目是干什么的。 |
 | `repo-hygiene` | 仓库卫生与长期可维护性：分支策略、提交粒度、忽略规则、产物与密钥隔离、依赖与告警治理。触发：仓库管理、提交规范、清理仓库、分支规划。 |
-| `requirement-framing` | 接到需求先做问题拆解：还原真实目标、划清范围、列出未知与假设、给出可验收定义。触发：需求模糊、目标不清、先想清楚再动手、方案前置分析。 |
+| `requirement-framing` | 需求模糊时的快速五问速查：真实目标、成功判据、范围边界、约束、未知与假设。需要完整意图识别（含项目定位、干系人、验收定义）时用 intent-recognition。触发：需求不清、先想清楚再动手。 |
 | `rust` | Rust 开发规范：内存安全、性能与异步编程。 |
 | `secrets-vault-manager` | 搭建密钥管理基础设施：集成 HashiCorp Vault、配置 AWS/Azure/GCP 云密钥库、实现凭证轮换与密钥访问审计，仅做流程设计。 |
 | `security-scan` | 单遍快速仓库安全审计。当全栈/软件开发团队在门禁阶段需要一轮快速安全检查时调用。单遍扫描依赖漏洞、硬编码密钥、注入点、鉴权缺失、危险函数等常见风险，输出分级清单与修复建议，速度优先、覆盖面广，不做… |
