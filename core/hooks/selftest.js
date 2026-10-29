@@ -230,6 +230,21 @@ const CASES = [
     payload: (cwd) => ({ session_id: 'st-sess', cwd, tool_name: 'Bash',
       tool_input: { command: 'npm test' }, tool_response: { status: 'completed', stdout: 'Tests: 10 passed, 0 failed' } }),
     expect: (o, cwd) => o === null && m.readState(cwd).lastVerifyOk === true && m.readState(cwd).needsVerify === false },
+  { name: 'track-verify: 0 个测试的假绿不算通过', script: 'track-verify.js',
+    payload: (cwd) => ({ session_id: 'st-sess', cwd, tool_name: 'Bash',
+      tool_input: { command: 'npm test' }, tool_response: { status: 'completed', stdout: 'No tests found' } }),
+    expect: (o, cwd) => o === null && m.readState(cwd).lastVerifyOk === false
+      && m.readState(cwd).lastVerifyEmpty === true },
+  { name: 'track-verify: 全部 skipped 不算通过', script: 'track-verify.js',
+    payload: (cwd) => ({ session_id: 'st-sess', cwd, tool_name: 'Bash',
+      tool_input: { command: 'npm test' }, tool_response: { status: 'completed', stdout: 'Tests: 5 skipped, 0 passed, 0 failed' } }),
+    expect: (o, cwd) => o === null && m.readState(cwd).lastVerifyOk === false
+      && m.readState(cwd).lastVerifyEmpty === true },
+  { name: 'track-verify: 部分跳过但有真实通过仍算通过', script: 'track-verify.js',
+    payload: (cwd) => ({ session_id: 'st-sess', cwd, tool_name: 'Bash',
+      tool_input: { command: 'npm test' }, tool_response: { status: 'completed', stdout: 'Tests: 8 passed, 2 skipped, 0 failed' } }),
+    expect: (o, cwd) => o === null && m.readState(cwd).lastVerifyOk === true
+      && m.readState(cwd).lastVerifyEmpty === false },
   { name: 'track-verify: PostToolUseFailure 记录失败', script: 'track-verify.js',
     payload: (cwd) => ({ session_id: 'st-sess', cwd, tool_name: 'Bash', hook_event_name: 'PostToolUseFailure',
       tool_input: { command: 'pytest -q' }, error: 'process exited with code 1' }),

@@ -1,4 +1,4 @@
-# 技能清单（99）
+# 技能清单（100）
 
 安装后位于 `<安装目录>/skills/`。触发词与完整流程见各目录内的 `SKILL.md`。
 
@@ -26,6 +26,7 @@
 | `audit-adjudication` | Consolidate multiple completed audit results into one traceable decision record, whether they came… |
 | `cache-economy` | 控制上下文成本与缓存命中：稳定前缀、少而精的读取、增量编辑、避免重复扫描。触发：上下文变长、响应变慢、重复读同一文件、长会话、token 成本高。 |
 | `canvas-design` | Create original posters, visual art and .png/.pdf designs using design philosophy: layout, color, … |
+| `change-integrity` | 防止看一段改一段、反复打补丁；防止跑个测试就宣称完成。要求先建模影响面，再用反证证明改动有效。 |
 | `ci-cd-pipeline-builder` | CI/CD 流水线生成与发布门禁规程。当全栈/软件开发团队需要搭建或改造自动化流水线时调用。覆盖触发策略、并行作业、缓存、构建/测试/扫描门禁、制品打包、多环境部署与回滚，要求门禁失败即阻断、密钥… |
 | `code-generator` | 把结构化实现计划变成可运行代码：生成 CRUD、测试桩等骨架与复杂逻辑。 |
 | `code-intent-planner` | 识别编码意图并拆解任务：三层瀑布式识别生成带证据分级的执行计划。 |

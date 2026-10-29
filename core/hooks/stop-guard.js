@@ -151,11 +151,19 @@ async function runGuard(payload) {
   }
   if (needsVerify) {
     const files = Array.isArray(state.changedFiles) ? state.changedFiles.slice(-5) : [];
-    reasons.push(
-      '本轮改了代码但没跑验证，不允许说「完成」：',
-      ...(files.length ? [`  改动：${files.join('、')}`] : []),
-      '  先跑项目自带的验证命令（test / typecheck / lint / gate），把真实结果贴出来；没跑通过就不要收尾。'
-    );
+    if (state.lastVerifyEmpty) {
+      reasons.push(
+        '上次验证命令虽然退出码为 0，但没有真实执行任何测试（0 tests / 全部 skipped）。这不叫验证通过：',
+        '  请检查测试文件是否被正确发现、是否有 .only/.skip 把用例排除、是否只写了恒真断言。',
+        '  确认测试真的会失败（改坏被测代码应看到红），再跑一次。'
+      );
+    } else {
+      reasons.push(
+        '本轮改了代码但没跑验证，不允许说「完成」：',
+        ...(files.length ? [`  改动：${files.join('、')}`] : []),
+        '  先跑项目自带的验证命令（test / typecheck / lint / gate），把真实结果贴出来；没跑通过就不要收尾。'
+      );
+    }
   }
   if (memoryStale) {
     reasons.push(

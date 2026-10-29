@@ -23,13 +23,13 @@ node install.js --tool claude         # 或只装某一个
 | `node install.js --tool zcode --home D:/rules` | 装到自定义目录（含 portable 场景） |
 | `node install.js --tool zcode --no-hooks` | 只装规则/技能/子代理/命令，不装钩子 |
 | `node install.js --tool zcode --uninstall` | 卸载；**安装后被改动过的文件一律保留** |
-| `npm run selftest` | 跑钩子自检（60 个用例） |
+| `npm run selftest` | 跑钩子自检（63 个用例） |
 
 ## 装了什么
 
 ```
 AGENTS.md              全局工作规范（16 章 + 6 个附则：输出纪律 / 自主执行 / 诚实 / 安全 / 记忆 / 切片交付 / 缓存经济 / 项目级收尾 / 进程台账 / 边界 / 工具优先级 / 移植）
-core/skills/           99 个技能（工作契约、AQG 审计、代码审查、调试、架构、前后端、数据、安全、工程管理、技能路由、视觉与文档等）
+core/skills/           100 个技能（工作契约、AQG 审计、代码审查、调试、架构、前后端、数据、安全、工程管理、技能路由、视觉与文档等）
 core/agents/           220 个子代理角色（软件/数据/内容/学术/电商/设计/视频/翻译等战队）
 core/commands/         4 个斜杠命令（review / arch-review / security-scan / test-gap）
 core/hooks/            9 个运行时钩子 + ledger 台账 CLI + 8 个共用模块 + Claude Code 输出适配器
