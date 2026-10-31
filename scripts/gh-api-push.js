@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const https = require('https');
-const { execSync } = require('child_process');
+const { execFileSync, execSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -82,6 +82,20 @@ function listFiles() {
   return out.split('\n').map((s) => s.trim()).filter(Boolean);
 }
 
+function gitBlob(file) {
+  return execFileSync('git', ['show', `HEAD:${file}`], {
+    cwd: ROOT,
+    encoding: 'buffer',
+    maxBuffer: 10 * 1024 * 1024,
+  });
+}
+
+function gitMode(file) {
+  const out = execFileSync('git', ['ls-files', '-s', '--', file], { cwd: ROOT, encoding: 'utf8' });
+  const match = out.match(/^(\d+) /);
+  return match ? match[1] : '100644';
+}
+
 (async () => {
   const { owner, branch } = parseArgs();
   const token = loadToken(owner);
@@ -117,9 +131,9 @@ function listFiles() {
   for (const f of files) {
     const abs = path.join(ROOT, f);
     if (!fs.existsSync(abs)) continue;
-    const buf = fs.readFileSync(abs);
+    const buf = gitBlob(f);
     if (buf.length > 5 * 1024 * 1024) { console.log('skip large', f); continue; }
-    tree.push({ path: f, mode: '100644', type: 'blob', content: buf.toString('utf8') });
+    tree.push({ path: f, mode: gitMode(f), type: 'blob', content: buf.toString('base64'), encoding: 'base64' });
   }
 
   // 分块提交 tree（避免单请求过大）
