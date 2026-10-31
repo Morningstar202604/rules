@@ -51,7 +51,7 @@
 | `frontend-component-lab` | 搭建生产级 React 与 TypeScript 组件脚手架，配套 CSS Modules 和 design-tokens.json，并提供规避魔法数字、内联样式等问题的审查清单。 |
 | `frontend-design` | Guidance for distinctive, intentional visual design when building new UI or reshaping an existing … |
 | `frontend-testing-debugging` | 前端测试与调试规程。当全栈团队需要为前端补 E2E/组件测试、或排查页面交互 Bug 时调用。覆盖组件测试、E2E 关键路径、可视回归的组织方式，以及用浏览器/DevTools 定位渲染、状态、网… |
-| `git-workflow` | Use when performing git operations 鈥?commits, branches, rebases, merges, conflict resolution, hist… |
+| `git-workflow` | Use when performing git operations — commits, branches, rebases, merges, conflict resolution, hist… |
 | `github-actions-advanced` | GitHub Actions 高级 Workflow 工程化指南。当需要编写/优化 CI/CD、配置 OIDC 云认证、复用 reusable workflow、矩阵构建、依赖缓存、密钥与环境保护… |
 | `incremental-refactor` | 安全地重构既有代码：小步改动、行为不变、测试护航、可随时停下。触发：重构、拆分模块、替换实现、清理技术债。 |
 | `intent-recognition` | 开工前把「他想要什么、这个项目是什么」问清楚：目标、定位、干系人、约束、验收。 |
@@ -90,7 +90,7 @@
 | `systematic-debugging` | 遇到任何 bug、测试失败或异常行为时，在提出修复方案前先做系统化调试排查 |
 | `task-slicing` | 把需求拆成可独立验收的小任务：WBS、依赖排序、验收标准（DoD）、并行面识别。触发：拆任务、做计划、模块化、增量交付、任务太大不知从哪下手。 |
 | `tdd-guide` | 测试驱动开发指南：编写单元测试、生成 fixtures 与 mock、分析覆盖率缺口，指导红绿重构流程 |
-| `testing` | Use when writing, fixing, or reasoning about tests 鈥?unit, integration, end-to-end 鈥?or when decid… |
+| `testing` | Use when writing, fixing, or reasoning about tests — unit, integration, end-to-end — or when decid… |
 | `theme-factory` | Toolkit for styling artifacts with a theme: slides, docs, reports, HTML landing pages. Ships 10 pr… |
 | `ticket-triage` | 对客服工单进行分类与优先级排序：判定 P1-P4、指派处理团队，并识别重复或已知问题 |
 | `toolchain-playbook` | 本机工具链速查与选型：搜索、JSON/YAML 处理、Git 平台、包管理、运行时、构建与容器。触发：选工具、命令怎么写、本机装了什么、该用哪个 CLI。 |

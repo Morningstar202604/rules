@@ -15,7 +15,7 @@
 | 子代理 | `agents/*.md` | `agents/*.md` | `agents/*.md` | `agents/*.md` | `agents/*.md` |
 | 斜杠命令 | `commands/*.md` | `commands/*.md` | `commands/*.md` | `commands/*.md` | `commands/*.md` |
 | 钩子 | 支持（`cli/config.json`） | 支持（`settings.json`） | 不支持 | 不支持 | 不支持 |
-| 运行时门禁 | 完整 8 个钩子 + ledger 台账 | 8 个中 7 个（无 `PostToolUseFailure`，失败由 Bash 结果推断） | 无 | 无 | 无 |
+| 运行时门禁 | 8 个事件钩子 + cleanup-check + ledger 台账 | 8 个事件钩子（无 `PostToolUseFailure`，失败由 Bash 结果推断） | 无 | 无 | 无 |
 
 ## 3. 无钩子工具的降级清单
 
@@ -65,8 +65,8 @@
 ## 5. 迁移到新机器
 
 ```bash
-git clone https://gitcode.com/badhope/rules.git
-cd agent-work-contract
+git clone https://gitcode.com/badhope/rules.git rules
+cd rules
 node --version          # 需要 >= 18
 node install.js --all
 ```
@@ -74,9 +74,9 @@ node install.js --all
 迁移后检查：
 
 1. 目标工具的规则文件已更新（`~/.zcode/AGENTS.md` 等）。
-2. 技能目录数量与 `docs/SKILLS.md` 一致（71 个）。
-3. 支持钩子的工具：`cli/config.json` / `settings.json` 里能看到 8 个（Claude 为 7 个）本仓库脚本路径。
-4. 跑一次 `npm run selftest`，应为 `ALL 50 CASES PASS`。
+2. 技能目录数量与 `docs/SKILLS.md` 一致（100 个）。
+3. 支持钩子的工具：`cli/config.json` / `settings.json` 里能看到 8 个本仓库事件钩子脚本路径；`cleanup-check` 由 `stop-guard` 在收尾阶段串联，`ledger` 为手动 CLI。
+4. 跑一次 `npm run selftest`，应为 `ALL 63 CASES PASS`。
 
 ## 6. 定制与上游同步
 

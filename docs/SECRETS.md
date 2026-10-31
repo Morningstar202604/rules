@@ -5,9 +5,9 @@
 ## 设计
 
 - 唯一数据源：`~/.agent-secrets/accounts.json`（权限 0600，永不进 Git）。
-- 派生文件：`accounts.env`（shell 可 source）、`git-credentials`（可选）。
-- 读取顺序：账号专属环境变量 → 本机库 → 通用环境变量（`GITHUB_TOKEN` / `GH_TOKEN`）。
-- 纪律：不打印、不提交、不外传密钥值；日志只记录"已配置/未配置"。
+- 不生成含 token 的派生文件，不写入 `accounts.env` 或 `git-credentials`。
+- 上传时由 Git askpass 在子进程内按账号读取本机库，token 不进入 URL、argv 或日志。
+- 纪律：不打印、不提交、不外传密钥值；日志只记录"已配置/未配置/探活结果"。
 
 ## 最小文件
 
@@ -21,7 +21,6 @@
       "api_base": "https://api.github.com",
       "accounts": {
         "your-account": {
-          "env": "GITHUB_TOKEN_YOUR_ACCOUNT",
           "token": "<FILL_ME>",
           "status": "unchecked",
           "consumers": []
@@ -38,8 +37,7 @@
 mkdir -p ~/.agent-secrets && chmod 700 ~/.agent-secrets
 cp <repo>/templates/secrets/accounts.example.json ~/.agent-secrets/accounts.json
 chmod 600 ~/.agent-secrets/accounts.json
-# 编辑填入真实 token，然后：
-set -a; . ~/.agent-secrets/accounts.env; set +a
+# 编辑填入真实 token，然后直接使用需要凭据的工具；不要 source/eval 任何 token 导出文件。
 ```
 
 ## CLI 与五平台上传
@@ -48,12 +46,12 @@ set -a; . ~/.agent-secrets/accounts.env; set +a
 
 ```bash
 python ~/.agent-secrets/accounts_cli.py list     # 列出账号（不显示 token）
-python ~/.agent-secrets/accounts_cli.py check    # 探活各平台 API 并更新状态
-python ~/.agent-secrets/accounts_cli.py sync     # 重新生成 accounts.env 并注册用户级环境变量
-python ~/.agent-secrets/accounts_cli.py store-git  # 注入 git 凭据管理器
-python ~/.agent-secrets/accounts_cli.py env      # 输出 export 行（供 eval）
+python ~/.agent-secrets/accounts_cli.py check    # 按平台契约探活（GitHub 使用 Bearer，GitCode/Gitee 使用 access_token query）并更新状态
 python ~/.agent-secrets/accounts_cli.py path     # 输出凭据库目录
+scripts/upload_all.sh                              # askpass 方式同步五个平台
 ```
+
+`sync`、`store-git`、`env` 仍保留为兼容入口，但会拒绝执行；它们不再生成环境文件、写入 Git 凭据或输出 token。
 
 五平台默认上传（gitcode/badhope、gitee/badhope、github/x33834、github/Morningstar202604、github/badhope，仓库统一命名 `rules`）：
 
@@ -62,7 +60,7 @@ scripts/upload_all.sh            # 串行推送 + 8s 平台间隔限速
 UPLOAD_SLEEP=15 scripts/upload_all.sh   # 调大间隔
 ```
 
-token 只从凭据库读入进程内存拼进推送 URL，不写 .git/config、不打印。
+token 只由 `scripts/git-askpass.sh`（调用 `git-askpass.js`）在 Git 请求密码时从凭据库读入进程内存；推送 URL 只含账号名，不含 token，不写 `.git/config`，日志不输出 token。Windows Git Bash 上传由 `cygpath` 将 MSYS 路径转换为原生路径。
 
 ## 与规则联动
 
@@ -73,4 +71,4 @@ token 只从凭据库读入进程内存拼进推送 URL，不写 .git/config、�
 1. 立即在提供方吊销并重新签发。
 2. `git filter-repo --path <file> --invert-paths` 清理历史（改写后需 force push，仅限本人仓库）。
 3. 通知所有协作者重新 clone。
-4. 在本机库更新新 token，跑 `sync`。
+4. 在本机库更新新 token，重新运行需要凭据的操作；不要运行已停用的 `sync`/`env`。

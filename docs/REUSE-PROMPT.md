@@ -12,7 +12,7 @@
 2. 检测本机已安装的编程智能体，执行：node install.js --all
    （只想要某一个：node install.js --tool zcode|claude|opencode|codex|generic）
 3. 验证：
-   - node <repo>/core/hooks/selftest.js 输出 "ALL 50 CASES PASS"
+   - node <repo>/core/hooks/selftest.js 输出 "ALL 63 CASES PASS"
    - 目标工具的规则文件已更新（如 ~/.zcode/AGENTS.md、~/.claude/CLAUDE.md）
    - 支持钩子的工具里，配置文件能看到本仓库 hooks 路径
 4. 报告：装了哪些工具、各写了多少文件、哪些走降级（无钩子）、有没有失败项。
@@ -23,7 +23,7 @@
 
 ```text
 安装 https://gitcode.com/badhope/rules 到本机所有编程智能体：
-git clone 后 node install.js --all，然后运行 core/hooks/selftest.js 确认 50/50 通过。
+git clone 后 node install.js --all，然后运行 core/hooks/selftest.js 确认 63/63 通过。
 ```
 
 ## 只借用规则、不装钩子

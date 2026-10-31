@@ -5,9 +5,18 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 
 const REPO = path.join(__dirname, '..');
+const NPM = process.platform === 'win32' ? (process.env.ComSpec || 'cmd.exe') : 'npm';
+
+function npmPackDryRun() {
+  const args = process.platform === 'win32'
+    ? ['/d', '/s', '/c', 'npm.cmd pack --dry-run --json']
+    : ['pack', '--dry-run', '--json'];
+  return execFileSync(NPM, args, { encoding: 'utf8', cwd: REPO });
+}
 const results = [];
 
 function check(name, fn) {
@@ -21,12 +30,16 @@ function check(name, fn) {
 
 function walk(dir, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (e.name === 'node_modules' || e.name === '.git') continue;
+    if (e.name === 'node_modules' || e.name === '.git' || e.name === '.tmp' || e.name === '.aqg') continue;
     const p = path.join(dir, e.name);
     if (e.isDirectory()) walk(p, out);
     else out.push(p);
   }
   return out;
+}
+
+function textFile(file) {
+  return /\.(md|js|json|py|yml|yaml|sh|txt|env|ini|cfg|conf|pem)$/i.test(file);
 }
 
 const skills = fs.readdirSync(path.join(REPO, 'core', 'skills')).filter((d) =>
@@ -60,13 +73,13 @@ check('命令 4 个', () => {
   return '4';
 });
 
-check('钩子 9 个 + ledger CLI + lib 8 个', () => {
+check('8 个事件钩子 + cleanup-check + ledger CLI + lib 8 个', () => {
   const hooks = fs.readdirSync(path.join(REPO, 'core', 'hooks')).filter((f) => f.endsWith('.js') && f !== 'selftest.js');
   const lib = fs.readdirSync(path.join(REPO, 'core', 'hooks', 'lib')).filter((f) => f.endsWith('.js'));
   if (hooks.length !== 10) throw new Error('钩子 ' + hooks.length);
   if (lib.length !== 8) throw new Error('lib ' + lib.length);
   if (!hooks.includes('ledger.js')) throw new Error('缺 ledger.js');
-  return '9 + ledger + 8';
+  return '8 event hooks + cleanup-check + ledger + 8 lib';
 });
 
 check('钩子自检 63/63', () => {
@@ -84,23 +97,38 @@ const SECRET_PATTERNS = [
   /github_pat_[A-Za-z0-9_]{20,}/,
   /AKIA[0-9A-Z]{16}/,
   /-----BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY-----/,
-  /sk-[A-Za-z0-9]{32,}/,
+  /sk-(?:proj-)?[A-Za-z0-9_-]{32,}/,
 ];
 
-// 上游技能自带的负向测试fixture：形似密钥但明确是假值（FAKE / EXAMPLE / canary），不算泄露。
-const FIXTURE_HINT = /FAKE|EXAMPLE|CANARY|canary|dummy|placeholder|<FILL|000000/i;
+// 仅允许已知负向 fixture 中带明确假值标记的单行命中；其它命中一律失败。
+const FIXTURE_FILES = new Set([
+  'core/skills/aqg-automation-audit/scripts/self_test.py',
+  'core/skills/aqg-session-handoff/scripts/self_test.py',
+  'core/skills/aqg-session-handoff/tests/test_session_handoff.py',
+  'core/skills/env-secrets-manager/assets/sample_env_leak.env',
+]);
+const FIXTURE_LINE_HASHES = new Set([
+  '2b0fd5a051e6deebb9969867d3d78a304e8b9ddd922d0b25fe299c458f4c884f',
+  '2b3b7a6e5a42f3f7b1b640c8f7c786560d807bfa00645cbd91e883aea1319f96',
+]);
+const FIXTURE_HINT = /FAKE|EXAMPLE|CANARY|canary|dummy|<FILL|000000|SYNTHETIC|<redacted>/i;
 
 check('无真实密钥特征', () => {
   const hits = [];
   for (const f of walk(REPO)) {
-    if (!/\.(md|js|json|py|yml|yaml|sh|txt)$/i.test(f)) continue;
+    if (!textFile(f)) continue;
     const t = fs.readFileSync(f, 'utf8');
     for (const re of SECRET_PATTERNS) {
-      const m = re.exec(t);
-      if (!m) continue;
-      const line = t.slice(t.lastIndexOf('\n', m.index) + 1, t.indexOf('\n', m.index));
-      if (FIXTURE_HINT.test(line)) continue;
-      hits.push(path.relative(REPO, f) + ' :: ' + m[0].slice(0, 12) + '…');
+      const matcher = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+      for (const m of t.matchAll(matcher)) {
+        const rel = path.relative(REPO, f).replaceAll(path.sep, '/');
+        const lineStart = t.lastIndexOf('\n', m.index) + 1;
+        const lineEnd = t.indexOf('\n', m.index) < 0 ? t.length : t.indexOf('\n', m.index);
+        const line = t.slice(lineStart, lineEnd).replace(/\r$/, '');
+        const lineHash = crypto.createHash('sha256').update(line).digest('hex');
+        if (FIXTURE_LINE_HASHES.has(lineHash) || (FIXTURE_FILES.has(rel) && FIXTURE_HINT.test(line))) continue;
+        hits.push(rel + ' :: ' + m[0].slice(0, 12) + '…');
+      }
     }
   }
   if (hits.length) throw new Error(hits.join('; '));
@@ -110,7 +138,7 @@ check('无真实密钥特征', () => {
 check('无个人绝对路径', () => {
   const hits = [];
   for (const f of walk(REPO)) {
-    if (!/\.(md|js|json|py|yml|yaml|sh|txt)$/i.test(f)) continue;
+    if (!textFile(f)) continue;
     if (f.endsWith('verify.js')) continue;
     if (path.relative(REPO, f).startsWith('.tmp')) continue;
     const t = fs.readFileSync(f, 'utf8');
@@ -139,6 +167,21 @@ check('install.js 语法与帮助', () => {
   const out = execFileSync(process.execPath, [path.join(REPO, 'install.js')], { encoding: 'utf8', cwd: REPO });
   if (!/--tool/.test(out)) throw new Error('无帮助输出');
   return 'ok';
+});
+
+check('npm 包含安装运行时脚本', () => {
+  const raw = npmPackDryRun();
+  const files = JSON.parse(raw)[0].files.map((f) => f.path);
+  const required = ['scripts/accounts_cli.py', 'scripts/upload_all.sh', 'scripts/gh-api-push.js', 'scripts/git-askpass.js'];
+  const missing = required.filter((f) => !files.includes(f));
+  if (missing.length) throw new Error('缺 ' + missing.join(', '));
+  return required.length + ' scripts';
+});
+
+check('凭据路径安全回归', () => {
+  const out = execFileSync(process.execPath, [path.join(REPO, 'scripts', 'security_selftest.js')], { encoding: 'utf8', cwd: REPO });
+  if (!/security selftest: PASS/.test(out)) throw new Error(out);
+  return 'PASS';
 });
 
 let failed = 0;

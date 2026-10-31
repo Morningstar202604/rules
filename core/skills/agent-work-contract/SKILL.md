@@ -23,15 +23,15 @@ metadata:
 
 1. 确认 Node.js >= 18：`node --version`。
 2. 取得仓库（未克隆则克隆，已克隆则 `git pull --ff-only`）：
-   `git clone https://github.com/Morningstar202604/agent-work-contract.git`
+   `git clone https://gitcode.com/badhope/rules.git rules`
 3. 安装：
    - 全部已检测到的工具：`node install.js --all`
    - 指定工具：`node install.js --tool zcode|claude|opencode|codex|generic`
    - 只装规则不装钩子：追加 `--no-hooks`
    - 先看计划不落盘：追加 `--dry-run`
 4. 验证（缺一不可）：
-   - `node core/hooks/selftest.js` → `ALL 50 CASES PASS`
-   - `node scripts/verify.js` → `11/11 checks passed`
+   - `node core/hooks/selftest.js` → `ALL 63 CASES PASS`
+   - `node scripts/verify.js` → all repository checks passed
    - 目标工具的规则文件存在且含 `agent-work-contract` 标记
    - 支持钩子的工具：配置里能看到本仓库 hooks 的绝对路径
 5. 报告：装了哪些工具、文件数、哪些降级（无钩子）、失败项与原因。

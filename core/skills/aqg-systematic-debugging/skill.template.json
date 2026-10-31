@@ -8,8 +8,8 @@
   "host_overrides": {
     "claude": [
       {
-        "anchor": "[`docs/debugging-loop-guide.md`](../../docs/debugging-loop-guide.md)",
-        "replacement": "`$AQG_ROOT/docs/debugging-loop-guide.md`"
+        "anchor": "the local systematic-debugging workflow and `scripts/debug_case.py`",
+        "replacement": "`$AQG_ROOT/skills/aqg-systematic-debugging/scripts/debug_case.py`"
       }
     ]
   },

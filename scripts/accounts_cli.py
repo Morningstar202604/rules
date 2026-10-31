@@ -5,28 +5,98 @@
 纪律：不打印 token 值；日志只记录"已配置/未配置/探活结果"。
 """
 import argparse
+import getpass
 import json
 import os
+import re
 import subprocess
 import sys
+import tempfile
+import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-VAULT = Path(os.environ.get("AGENT_SECRETS_DIR", Path.home() / ".agent-secrets"))
+
+def normalize_path(value):
+    if os.name == "nt" and re.match(r"^/[A-Za-z]/", value):
+        return value[1].upper() + ":\\" + value[3:].replace("/", "\\")
+    return value
+
+
+VAULT = Path(normalize_path(os.environ.get("AGENT_SECRETS_DIR", str(Path.home() / ".agent-secrets"))))
 ACCOUNTS = VAULT / "accounts.json"
 
-GIT_HOSTS = {"gitcode": "gitcode.com", "gitee": "gitee.com", "github": "github.com"}
+API_BASES = {
+    "gitcode": "https://gitcode.com/api/v5",
+    "gitee": "https://gitee.com/api/v5",
+    "github": "https://api.github.com",
+}
+API_HOSTS = {
+    "gitcode": "gitcode.com",
+    "gitee": "gitee.com",
+    "github": "api.github.com",
+}
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, new_url):
+        raise urllib.error.HTTPError(req.full_url, code, "redirect refused", headers, fp)
+
+
+OPENER = urllib.request.build_opener(NoRedirect)
+
+
+def ensure_private_file(write=False):
+    if not ACCOUNTS.exists():
+        sys.exit(f"凭据库不存在：{ACCOUNTS}（参考 docs/SECRETS.md 初始化）")
+    try:
+        os.chmod(ACCOUNTS, 0o600)
+    except OSError as exc:
+        sys.exit(f"凭据库权限无法收紧：{type(exc).__name__}")
+    if os.name == "nt":
+        try:
+            user = getpass.getuser()
+            grant = "M" if write else "R"
+            result = subprocess.run(
+                ["icacls", str(ACCOUNTS), "/reset"],
+                check=False, capture_output=True, text=True,
+            )
+            if result.returncode == 0:
+                result = subprocess.run(
+                    ["icacls", str(ACCOUNTS), "/inheritance:r", "/grant:r", f"{user}:{grant}",
+                     "/grant", "*S-1-5-18:F", "/grant", "*S-1-5-32-544:F"],
+                    check=False, capture_output=True, text=True,
+                )
+        except OSError:
+            sys.exit("Windows ACL 工具不可用，拒绝读取凭据库")
+        if result.returncode != 0:
+            sys.exit("Windows ACL 无法收紧，拒绝读取凭据库")
 
 
 def load():
-    if not ACCOUNTS.exists():
-        sys.exit(f"凭据库不存在：{ACCOUNTS}（参考 docs/SECRETS.md 初始化）")
+    ensure_private_file()
     return json.loads(ACCOUNTS.read_text(encoding="utf-8"))
 
 
 def save(data):
-    ACCOUNTS.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    ensure_private_file(write=True)
+    fd, tmp = tempfile.mkstemp(prefix=".accounts.", suffix=".tmp", dir=str(ACCOUNTS.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as out:
+            out.write(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+            out.flush()
+            os.fsync(out.fileno())
+        os.replace(tmp, ACCOUNTS)
+        try:
+            os.chmod(ACCOUNTS, 0o600)
+        except OSError as exc:
+            sys.exit(f"凭据库权限无法收紧：{type(exc).__name__}")
+        ensure_private_file(write=False)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
 
 
 def iter_accounts(data):
@@ -36,19 +106,35 @@ def iter_accounts(data):
 
 
 def probe(platform, pc, acc):
-    base = pc["api_base"].rstrip("/")
+    if platform not in API_BASES:
+        return 0, "config-error"
+    base = (pc.get("api_base") or API_BASES[platform]).rstrip("/")
+    parsed = urllib.parse.urlsplit(base)
+    if parsed.scheme != "https" or parsed.hostname != API_HOSTS[platform]:
+        return 0, "config-error"
     token = acc["token"]
-    if platform == "github":
-        req = urllib.request.Request(base + "/user", headers={"Authorization": "Bearer " + token, "User-Agent": "agent-vault"})
+    auth = pc.get("auth") or {}
+    scheme = auth.get("scheme") or ("bearer" if platform == "github" else "query")
+    headers = {"User-Agent": "agent-vault"}
+    endpoint = base + "/user"
+    if scheme == "bearer":
+        headers["Authorization"] = "Bearer " + token
+        if platform == "github":
+            headers["Accept"] = "application/vnd.github+json"
+    elif scheme == "query":
+        param = auth.get("param") or "access_token"
+        endpoint += ("&" if "?" in endpoint else "?") + urllib.parse.urlencode({param: token})
     else:
-        req = urllib.request.Request(base + "/user?access_token=" + token, headers={"User-Agent": "agent-vault"})
+        return 0, "config-error"
+    req = urllib.request.Request(endpoint, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=15) as res:
+        with OPENER.open(req, timeout=15) as res:
             body = json.loads(res.read().decode("utf-8"))
             return res.status, body.get("login") or body.get("username") or ""
-    except Exception as exc:  # noqa: BLE001 - 探活失败原因需要展示，token 不在异常文本里
-        code = getattr(exc, "code", None)
-        return code or 0, str(exc)[:80]
+    except urllib.error.HTTPError as exc:
+        return exc.code, "http-error"
+    except (urllib.error.URLError, TimeoutError, ValueError):
+        return 0, "network-error"
 
 
 def cmd_list(data):
@@ -67,39 +153,19 @@ def cmd_check(data):
     save(data)
 
 
-def cmd_sync(data):
-    lines = []
-    for _, _, _, acc in iter_accounts(data):
-        lines.append(f"export {acc['env']}={acc['token']}")
-    (VAULT / "accounts.env").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    registered = 0
-    for _, _, _, acc in iter_accounts(data):
-        try:
-            subprocess.run(["setx", acc["env"], acc["token"]], check=True, capture_output=True, shell=False)
-            registered += 1
-        except Exception:
-            print(f"setx 失败：{acc['env']}（可手动注册）", file=sys.stderr)
-    print(f"accounts.env 已更新；用户级环境变量注册 {registered} 个。新变量对新开的进程生效。")
+def cmd_sync(_data):
+    print("已停用明文环境变量同步；请使用 scripts/upload_all.sh 的 askpass 通道。", file=sys.stderr)
+    raise SystemExit(1)
 
 
-def cmd_store_git(data):
-    ok = 0
-    for platform, _, user, acc in iter_accounts(data):
-        host = GIT_HOSTS.get(platform)
-        if not host:
-            continue
-        payload = f"protocol=https\nhost={host}\nusername={user}\npassword={acc['token']}\n\n"
-        try:
-            subprocess.run(["git", "credential", "approve"], input=payload, text=True, check=True, capture_output=True)
-            ok += 1
-        except Exception:
-            print(f"git credential approve 失败：{platform}/{user}", file=sys.stderr)
-    print(f"已注入 git 凭据管理器 {ok} 条（同一 host 多账号时，远端 URL 需带 username 区分）。")
+def cmd_store_git(_data):
+    print("已停用持久化 Git 凭据写入；上传请使用 scripts/upload_all.sh 的 askpass 通道。", file=sys.stderr)
+    raise SystemExit(1)
 
 
-def cmd_env(data):
-    for _, _, _, acc in iter_accounts(data):
-        print(f"export {acc['env']}={acc['token']}")
+def cmd_env(_data):
+    print("已停用明文环境变量输出；不会把 token 写入标准输出。", file=sys.stderr)
+    raise SystemExit(1)
 
 
 def cmd_path(_data):

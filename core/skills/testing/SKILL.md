@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Use when writing, fixing, or reasoning about tests 鈥?unit, integration, end-to-end 鈥?or when deciding what to test and how much coverage is enough.
+description: Use when writing, fixing, or reasoning about tests — unit, integration, end-to-end — or when deciding what to test and how much coverage is enough.
 ---
 
 # Testing

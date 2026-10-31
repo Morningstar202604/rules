@@ -1,6 +1,6 @@
 # 钩子说明
 
-8 个钩子位于 `<安装目录>/hooks/`，共用 `<安装目录>/hooks/lib/` 下的 6 个模块（5 个共用模块 + 1 个 Claude Code 输出适配器 `claude-wrap.js`）。全部是纯 Node.js（>= 18）、零第三方依赖、不联网。
+8 个事件钩子、`cleanup-check` 收尾辅助和 `ledger` 台账 CLI 位于 `<安装目录>/hooks/`，共用 `<安装目录>/hooks/lib/` 下的 8 个模块（7 个共用模块 + 1 个 Claude Code 输出适配器 `claude-wrap.js`）。全部是纯 Node.js（>= 18）、零第三方依赖、不联网。
 
 ## 执行契约
 
@@ -96,7 +96,7 @@ node hooks/ledger.js decision --title "..." --original "..." --judgment "..." --
 
 ```bash
 npm run selftest
-# ALL 52 CASES PASS
+# ALL 63 CASES PASS
 ```
 
 自检在 `<仓库>/.tmp/selftest/` 建临时工作区，通过 `ZCODE_MEMORY_DIR` 把记忆重定向到临时目录，不碰真实状态。可用 `AGENT_RULES_TEST_TMP` 改位置。

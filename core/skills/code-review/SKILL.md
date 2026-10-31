@@ -15,9 +15,9 @@ Review the requested code and report findings ordered by severity.
 5. Check performance only where it matters (hot paths, N+1 queries, unbounded work).
 
 ## Output
-- `[BLOCKER]` must fix before merge 鈥?cite file:line and explain the failure mode.
-- `[MAJOR]` should fix 鈥?correctness or security risk under realistic conditions.
-- `[MINOR]` nice to have 鈥?style, naming, readability.
+- `[BLOCKER]` must fix before merge — cite file:line and explain the failure mode.
+- `[MAJOR]` should fix — correctness or security risk under realistic conditions.
+- `[MINOR]` nice to have — style, naming, readability.
 - `[QUESTION]` unclear intent, ask rather than assume.
 
 Never invent issues. If a section is clean, say so briefly.

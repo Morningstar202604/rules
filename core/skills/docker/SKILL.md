@@ -15,4 +15,4 @@ description: Use when writing or debugging Dockerfiles, docker-compose services,
 ## Compose
 - Declare healthchecks and `depends_on: condition: service_healthy`.
 - Named volumes for persistent data; bind mounts only for development.
-- Never bake secrets into images 鈥?use env files or secrets mounts.
+- Never bake secrets into images — use env files or secrets mounts.

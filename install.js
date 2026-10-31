@@ -31,6 +31,13 @@ const VERSION = JSON.parse(fs.readFileSync(path.join(REPO, 'package.json'), 'utf
 const MANIFEST_NAME = '.agent-work-contract.json';
 const BACKUP_DIR = '.agent-work-contract-backup';
 
+function normalizeFsPath(value) {
+  if (process.platform === 'win32' && /^\/[A-Za-z]\//.test(value)) {
+    return value[1].toUpperCase() + ':\\' + value.slice(3).replaceAll('/', '\\');
+  }
+  return value;
+}
+
 const HOOK_SCRIPTS = [
   'session-start.js',
   'user-prompt.js',
@@ -68,7 +75,7 @@ const opt = {
 };
 for (let i = 0; i < args.length; i += 1) {
   if (args[i] === '--tool' && args[i + 1]) opt.tools.push(args[++i]);
-  else if (args[i] === '--home' && args[i + 1]) opt.home = path.resolve(args[++i]);
+  else if (args[i] === '--home' && args[i + 1]) opt.home = path.resolve(normalizeFsPath(args[++i]));
 }
 
 function log(msg) {
@@ -82,23 +89,82 @@ function ensureDir(dir) {
 function sha256(file) {
   try {
     return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
-  } catch {
-    return null;
+  } catch (e) {
+    if (e.code === 'ENOENT') return null;
+    throw new Error('无法读取文件：' + file + '（' + e.message + '）');
   }
 }
 
+function isContained(root, target) {
+  const rootAbs = path.resolve(root);
+  const targetAbs = path.resolve(target);
+  return targetAbs === rootAbs || targetAbs.startsWith(rootAbs + path.sep);
+}
+
+function isSymlink(file) {
+  try { return fs.lstatSync(file).isSymbolicLink(); } catch (e) {
+    if (e.code === 'ENOENT') return false;
+    throw e;
+  }
+}
+
+function hasMultipleLinks(file) {
+  try { return fs.lstatSync(file).nlink > 1; } catch (e) {
+    if (e.code === 'ENOENT') return false;
+    throw e;
+  }
+}
+
+function assertNoSymlinkPath(target) {
+  let current = path.resolve(target);
+  while (true) {
+    if (isSymlink(current)) throw new Error('拒绝使用符号链接路径：' + target);
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+}
+
+function assertContained(root, target, options = {}) {
+  const abs = path.resolve(target);
+  if (!isContained(root, abs)) throw new Error('路径超出安装目录，已停止操作：' + target);
+  if (options.existing && (isSymlink(abs) || hasMultipleLinks(abs))) {
+    throw new Error('拒绝覆盖链接文件：' + target);
+  }
+  let parent = path.dirname(abs);
+  const rootAbs = path.resolve(root);
+  while (isContained(rootAbs, parent) && parent !== rootAbs) {
+    if (isSymlink(parent)) throw new Error('拒绝写入符号链接目录：' + parent);
+    parent = path.dirname(parent);
+  }
+  return abs;
+}
+
+function recordMutation(file, existed) {
+  if (!transaction) return;
+  const abs = assertContained(transaction.home, file);
+  if (!transaction.touched.has(abs)) transaction.touched.set(abs, { existed, backup: null });
+}
+
+function recordExternalCreate(file) {
+  if (transaction) transaction.externalCreated.add(path.resolve(file));
+}
+
 function copyFile(src, dest, manifest) {
-  const before = sha256(dest);
-  ensureDir(path.dirname(dest));
+  const abs = assertContained(currentHome, dest, { existing: true });
+  const before = sha256(abs);
+  ensureDir(path.dirname(abs));
   if (before && before === sha256(src) && !opt.force) {
-    manifest.files.push({ path: path.relative(manifest.home, dest), sha256: before });
+    manifest.files.push({ path: path.relative(manifest.home, abs), sha256: before });
     return 'same';
   }
-  if (before) backup(dest);
-  if (!opt.dryRun) fs.copyFileSync(src, dest);
-  manifest.files.push({ path: path.relative(manifest.home, dest), sha256: sha256(src) });
+  if (before) backup(abs);
+  else recordMutation(abs, false);
+  if (!opt.dryRun) fs.copyFileSync(src, abs);
+  manifest.files.push({ path: path.relative(manifest.home, abs), sha256: sha256(abs) });
   return before ? 'updated' : 'created';
 }
+
 
 const LOCAL_SECTION = '## 十七、本机环境与个人约定（升级时保留）';
 
@@ -108,9 +174,10 @@ function splitLocalSection(text) {
 }
 
 function installRules(src, dest, manifest) {
+  const destAbs = assertContained(currentHome, dest, { existing: true });
   const existing = (() => {
     try {
-      return fs.readFileSync(dest, 'utf8');
+      return fs.readFileSync(destAbs, 'utf8');
     } catch {
       return '';
     }
@@ -123,15 +190,16 @@ function installRules(src, dest, manifest) {
   const repoBody = fs.readFileSync(src, 'utf8').replace(/\r\n/g, '\n').trimEnd();
   const currentBody = head.replace(/^<!-- agent-work-contract v[\d.]+ -->\n\n/, '').trimEnd();
   if (repoBody === currentBody) {
-    manifest.files.push({ path: path.relative(manifest.home, dest), sha256: sha256(dest) });
+    manifest.files.push({ path: path.relative(manifest.home, destAbs), sha256: sha256(destAbs) });
     return 'same';
   }
 
   const merged = `${repoBody}\n\n${local}\n`;
-  const before = sha256(dest);
-  if (before) backup(dest);
-  if (!opt.dryRun) fs.writeFileSync(dest, merged, 'utf8');
-  manifest.files.push({ path: path.relative(manifest.home, dest), sha256: sha256(dest) });
+  const abs = assertContained(currentHome, dest, { existing: true });
+  const before = sha256(abs);
+  if (before) backup(abs);
+  if (!opt.dryRun) atomicWriteText(abs, merged);
+  manifest.files.push({ path: path.relative(manifest.home, abs), sha256: sha256(abs) });
   return 'merged';
 }
 
@@ -159,34 +227,88 @@ function copyTree(srcDir, destDir, manifest, skipNames) {
 }
 
 function backup(file) {
+  const abs = assertContained(currentHome, file, { existing: true });
   const stamp = manifestStamp;
-  const rel = path.relative(currentHome, file);
+  const rel = path.relative(currentHome, abs);
   const dest = path.join(currentHome, BACKUP_DIR, stamp, rel);
-  if (opt.dryRun) return;
+  assertNoSymlinkPath(dest);
+  if (transaction) {
+    const state = transaction.touched.get(abs) || { existed: true, backup: null };
+    state.existed = true;
+    state.backup = dest;
+    transaction.touched.set(abs, state);
+  }
+  if (opt.dryRun) return true;
   ensureDir(path.dirname(dest));
   try {
-    fs.copyFileSync(file, dest);
-  } catch {
-    /* 备份失败不阻断，但会在汇总里提示 */
+    fs.copyFileSync(abs, dest);
+    return true;
+  } catch (e) {
+    throw new Error('备份失败，已停止覆盖：' + abs + '（' + e.message + '）');
   }
 }
 
-function readJson(file, fallback) {
+function readJson(file, fallback, options = {}) {
   try {
-    return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
-  } catch {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+    if (options.object && (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))) {
+      throw new Error('根节点必须是 JSON 对象');
+    }
+    return parsed;
+  } catch (e) {
+    if (options.strict && fs.existsSync(file)) {
+      throw new Error('JSON 配置损坏，已停止覆盖：' + file + '（' + e.message + '）');
+    }
     return fallback;
   }
 }
 
+function atomicWriteText(abs, text) {
+  ensureDir(path.dirname(abs));
+  const tmp = path.join(path.dirname(abs), '.' + path.basename(abs) + '.' + manifestStamp + '.tmp');
+  let fd = null;
+  try {
+    fd = fs.openSync(tmp, 'w');
+    fs.writeFileSync(fd, text, 'utf8');
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
+    fd = null;
+    fs.renameSync(tmp, abs);
+  } catch (e) {
+    if (fd !== null) {
+      try { fs.closeSync(fd); } catch { /* ignore cleanup failure */ }
+    }
+    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch { /* ignore cleanup failure */ }
+    throw new Error('原子写入失败：' + abs + '（' + e.message + '）');
+  }
+}
+
+function atomicWriteJson(abs, data) {
+  atomicWriteText(abs, JSON.stringify(data, null, 2) + '\n');
+  const written = readJson(abs, null, { strict: true, object: true });
+  if (!written) throw new Error('配置写入后校验失败：' + abs);
+}
+
 function writeJson(file, data, manifest) {
   if (opt.dryRun) return;
-  ensureDir(path.dirname(file));
-  fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n', 'utf8');
-  manifest.configs = manifest.configs || [];
-  if (!manifest.configs.includes(path.relative(manifest.home, file))) {
-    manifest.configs.push(path.relative(manifest.home, file));
+  const abs = assertContained(currentHome, file, { existing: true });
+  if (manifest) {
+    manifest.configs = manifest.configs || [];
+    const rel = path.relative(manifest.home, abs);
+    if (!manifest.configs.includes(rel)) manifest.configs.push(rel);
   }
+  if (fs.existsSync(abs)) backup(abs);
+  else recordMutation(abs, false);
+  atomicWriteJson(abs, data);
+}
+
+
+function writeManifest(file, data) {
+  if (opt.dryRun) return;
+  const abs = assertContained(currentHome, file, { existing: true });
+  if (fs.existsSync(abs)) backup(abs);
+  else recordMutation(abs, false);
+  atomicWriteJson(abs, data);
 }
 
 function nodeBin() {
@@ -231,9 +353,9 @@ function ownZcodeHook(entry, hooksDir) {
   });
 }
 
-function unmergeZcodeConfig(home) {
+function unmergeZcodeConfig(home, manifest) {
   const cfgPath = path.join(home, 'cli', 'config.json');
-  const cfg = readJson(cfgPath, null);
+  const cfg = readJson(cfgPath, null, { strict: true, object: true });
   if (!cfg || !cfg.hooks || !cfg.hooks.events) return;
   const hooksDir = path.join(home, 'hooks');
   let changed = false;
@@ -246,13 +368,13 @@ function unmergeZcodeConfig(home) {
       else delete cfg.hooks.events[event];
     }
   }
-  if (changed && !opt.dryRun) fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
+  if (changed && !opt.dryRun) writeJson(cfgPath, cfg, manifest);
   if (changed) log('  - 已从 cli/config.json 移除本规则的钩子注册');
 }
 
 function mergeZcodeConfig(home, manifest) {
   const cfgPath = path.join(home, 'cli', 'config.json');
-  const cfg = readJson(cfgPath, null);
+  const cfg = readJson(cfgPath, null, { strict: true, object: true });
   if (cfg === null) {
     log('  ! 未找到 cli/config.json，跳过钩子注册（先启动一次 ZCode 生成配置，再重跑安装）');
     return;
@@ -312,9 +434,9 @@ function ownClaudeHook(entry, hooksDir) {
   return list.some((h) => typeof h.command === 'string' && h.command.includes(hooksDir));
 }
 
-function unmergeClaudeConfig(home) {
+function unmergeClaudeConfig(home, manifest) {
   const cfgPath = path.join(home, 'settings.json');
-  const cfg = readJson(cfgPath, null);
+  const cfg = readJson(cfgPath, null, { strict: true, object: true });
   if (!cfg || !cfg.hooks) return;
   const hooksDir = path.join(home, 'hooks');
   let changed = false;
@@ -327,13 +449,13 @@ function unmergeClaudeConfig(home) {
       else delete cfg.hooks[event];
     }
   }
-  if (changed && !opt.dryRun) fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
+  if (changed && !opt.dryRun) writeJson(cfgPath, cfg, manifest);
   if (changed) log('  - 已从 settings.json 移除本规则的钩子注册');
 }
 
 function mergeClaudeConfig(home, manifest) {
   const cfgPath = path.join(home, 'settings.json');
-  const cfg = readJson(cfgPath, {});
+  const cfg = readJson(cfgPath, {}, { strict: true, object: true });
   const hooksDir = path.join(home, 'hooks');
   const events = cfg.hooks || {};
   const ours = claudeHookEvents(hooksDir);
@@ -348,7 +470,7 @@ function mergeClaudeConfig(home, manifest) {
 
 function mergeOpencodeConfig(home, manifest) {
   const cfgPath = path.join(home, 'opencode.json');
-  const cfg = readJson(cfgPath, {});
+  const cfg = readJson(cfgPath, {}, { strict: true });
   const instructions = Array.isArray(cfg.instructions) ? cfg.instructions : [];
   const agentsFile = path.join(home, 'AGENTS.md');
   if (!instructions.includes(agentsFile)) instructions.push(agentsFile);
@@ -416,6 +538,83 @@ const PROFILES = {
 
 let currentHome = null;
 let manifestStamp = '';
+let transaction = null;
+
+function trackExternalMutation(file, existed) {
+  if (!transaction) return;
+  const abs = path.resolve(file);
+  if (!transaction.external.has(abs)) transaction.external.set(abs, { existed, backup: null });
+}
+
+function rollbackTransaction() {
+  if (!transaction || opt.dryRun) return;
+  for (const [file, state] of transaction.external) {
+    try {
+      if (state.existed && state.backup) fs.copyFileSync(state.backup, file);
+      else if (!state.existed && fs.existsSync(file)) fs.unlinkSync(file);
+    } catch (e) {
+      log('  ! 外部文件回滚失败：' + file + '（' + e.message + '）');
+    }
+  }
+  for (const [file, state] of [...transaction.touched].reverse()) {
+    try {
+      if (state.existed && state.backup) fs.copyFileSync(state.backup, file);
+      else if (!state.existed && fs.existsSync(file)) fs.unlinkSync(file);
+    } catch (e) {
+      log('  ! 安装文件回滚失败：' + file + '（' + e.message + '）');
+    }
+  }
+}
+
+function validateManifest(manifest, home) {
+  if (!manifest || !Array.isArray(manifest.files)) throw new Error('安装清单损坏，拒绝卸载');
+  for (const item of manifest.files) {
+    if (!item || typeof item.path !== 'string' || path.isAbsolute(item.path) || item.path.split(/[\\\\/]/).includes('..')) {
+      throw new Error('安装清单包含越界路径，拒绝卸载');
+    }
+    assertContained(home, path.join(home, item.path));
+    if (typeof item.sha256 !== 'string' || !item.sha256) throw new Error('安装清单缺少文件哈希，拒绝卸载');
+  }
+}
+
+function preflightProfile(name, profile, home) {
+  const config = name === 'zcode' ? path.join(home, 'cli', 'config.json')
+    : name === 'claude' ? path.join(home, 'settings.json')
+      : name === 'opencode' ? path.join(home, 'opencode.json') : null;
+  if (config && fs.existsSync(config)) readJson(assertContained(home, config, { existing: true }), {}, { strict: true, object: true });
+}
+
+function installCredentialCli() {
+  const vault = path.resolve(normalizeFsPath(process.env.AGENT_SECRETS_DIR || path.join(os.homedir(), '.agent-secrets')));
+  assertNoSymlinkPath(vault);
+  const cli = path.join(vault, 'accounts_cli.py');
+  assertNoSymlinkPath(cli);
+  const src = path.join(REPO, 'scripts', 'accounts_cli.py');
+  ensureDir(vault);
+  const before = sha256(cli);
+  if (before && hasMultipleLinks(cli)) throw new Error('拒绝覆盖凭据库硬链接：' + cli);
+  const sourceHash = sha256(src);
+  if (before && before === sourceHash) {
+    log('  = 保留已一致的凭据库 CLI → ' + cli);
+    return;
+  }
+  trackExternalMutation(cli, Boolean(before));
+  const state = transaction && transaction.external.get(path.resolve(cli));
+  if (before) {
+    const backupPath = path.join(vault, BACKUP_DIR, manifestStamp, 'accounts_cli.py');
+    if (!opt.dryRun) {
+      ensureDir(path.dirname(backupPath));
+      fs.copyFileSync(cli, backupPath);
+      if (state) state.backup = backupPath;
+    }
+    log('  ~ 已备份旧凭据库 CLI → ' + backupPath);
+  }
+  if (!opt.dryRun) {
+    fs.copyFileSync(src, cli);
+    try { fs.chmodSync(cli, 0o600); } catch { /* Windows ACL 由用户权限继承 */ }
+  }
+  log('  ' + (before ? '~' : '+') + ' 凭据库 CLI → ' + cli);
+}
 
 function installProfile(name) {
   const profile = PROFILES[name];
@@ -425,12 +624,13 @@ function installProfile(name) {
     return;
   }
   const home = opt.home || profile.home();
+  assertNoSymlinkPath(home);
   currentHome = home;
   manifestStamp = new Date().toISOString().replace(/[:.]/g, '-');
   log('\n== 安装到 ' + name + ' → ' + home + (opt.dryRun ? '（dry-run）' : '') + ' ==');
 
   const manifestPath = path.join(home, MANIFEST_NAME);
-  const previous = readJson(manifestPath, null);
+  const previous = readJson(manifestPath, null, { strict: true, object: true });
   const manifest = {
     tool: name,
     version: VERSION,
@@ -439,50 +639,43 @@ function installProfile(name) {
     files: [],
     configs: [],
   };
+  transaction = { home, touched: new Map(), external: new Map() };
 
-  ensureDir(home);
+  try {
+    preflightProfile(name, profile, home);
+    ensureDir(home);
 
-  const rulesDest = path.join(home, profile.rules);
-  const st = installRules(path.join(REPO, 'AGENTS.md'), rulesDest, manifest);
-  log('  ' + sym(st) + ' 规则 ' + profile.rules + (st === 'merged' ? '（已保留本机个人段落）' : ''));
+    const rulesDest = path.join(home, profile.rules);
+    const st = installRules(path.join(REPO, 'AGENTS.md'), rulesDest, manifest);
+    log('  ' + sym(st) + ' 规则 ' + profile.rules + (st === 'merged' ? '（已保留本机个人段落）' : ''));
 
-  const skillStats = copyTree(path.join(CORE, 'skills'), path.join(home, profile.skills), manifest, SKIP_SKILL_NAMES);
-  log('  ' + sym('updated') + ' 技能 → ' + profile.skills + '/（新增 ' + skillStats.created + '，更新 ' + skillStats.updated + '，未变 ' + skillStats.same + '）');
+    const skillStats = copyTree(path.join(CORE, 'skills'), path.join(home, profile.skills), manifest, SKIP_SKILL_NAMES);
+    log('  ' + sym('updated') + ' 技能 → ' + profile.skills + '/（新增 ' + skillStats.created + '，更新 ' + skillStats.updated + '，未变 ' + skillStats.same + '）');
 
-  const agentStats = copyTree(path.join(CORE, 'agents'), path.join(home, profile.agents), manifest);
-  log('  ' + sym('updated') + ' 子代理 → ' + profile.agents + '/（新增 ' + agentStats.created + '，更新 ' + agentStats.updated + '，未变 ' + agentStats.same + '）');
+    const agentStats = copyTree(path.join(CORE, 'agents'), path.join(home, profile.agents), manifest);
+    log('  ' + sym('updated') + ' 子代理 → ' + profile.agents + '/（新增 ' + agentStats.created + '，更新 ' + agentStats.updated + '，未变 ' + agentStats.same + '）');
 
-  const cmdStats = copyTree(path.join(CORE, 'commands'), path.join(home, profile.commands), manifest);
-  log('  ' + sym('updated') + ' 命令 → ' + profile.commands + '/（新增 ' + cmdStats.created + '，更新 ' + cmdStats.updated + '）');
+    const cmdStats = copyTree(path.join(CORE, 'commands'), path.join(home, profile.commands), manifest);
+    log('  ' + sym('updated') + ' 命令 → ' + profile.commands + '/（新增 ' + cmdStats.created + '，更新 ' + cmdStats.updated + '）');
 
-  if (profile.hooks && opt.withHooks) {
-    const hookStats = copyTree(path.join(CORE, 'hooks'), path.join(home, profile.hooks), manifest);
-    log('  ' + sym('updated') + ' 钩子 → ' + profile.hooks + '/（新增 ' + hookStats.created + '，更新 ' + hookStats.updated + '）');
-  }
-
-  if (profile.after) {
-    try {
-      profile.after(home, manifest);
-    } catch (e) {
-      log('  ! 配置合并失败：' + e.message);
-      process.exitCode = 1;
+    if (profile.hooks && opt.withHooks) {
+      const hookStats = copyTree(path.join(CORE, 'hooks'), path.join(home, profile.hooks), manifest);
+      log('  ' + sym('updated') + ' 钩子 → ' + profile.hooks + '/（新增 ' + hookStats.created + '，更新 ' + hookStats.updated + '）');
     }
-  }
 
-  if (!opt.dryRun) {
-    const vault = process.env.AGENT_SECRETS_DIR || path.join(os.homedir(), '.agent-secrets');
-    fs.mkdirSync(vault, { recursive: true });
-    const cli = path.join(vault, 'accounts_cli.py');
-    fs.copyFileSync(path.join(REPO, 'scripts', 'accounts_cli.py'), cli);
-    manifest.files.push({ path: path.relative(home, cli), sha256: sha256(cli) });
-    log('  ' + sym('updated') + ' 凭据库 CLI → ' + cli);
-  }
+    if (profile.after && (opt.withHooks || name === 'opencode')) profile.after(home, manifest);
+    if (!opt.dryRun) installCredentialCli();
 
-  if (!opt.dryRun) {
-    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
+  if (!opt.dryRun) writeManifest(manifestPath, manifest);
+    log('  完成。文件清单写入 ' + path.relative(home, manifestPath) + '（共 ' + manifest.files.length + ' 个文件）');
+    if (previous) log('  检测到旧安装（' + previous.version + '，' + previous.installedAt + '），已按新版本覆盖并备份旧文件。');
+  } catch (e) {
+    rollbackTransaction();
+    log('  ! 安装失败，已回滚：' + e.message);
+    process.exitCode = 1;
+  } finally {
+    transaction = null;
   }
-  log('  完成。文件清单写入 ' + path.relative(home, manifestPath) + '（共 ' + manifest.files.length + ' 个文件）');
-  if (previous) log('  检测到旧安装（' + previous.version + '，' + previous.installedAt + '），已按新版本覆盖并备份旧文件。');
 }
 
 function sym(status) {
@@ -499,45 +692,59 @@ function uninstallProfile(name) {
     return;
   }
   const home = opt.home || profile.home();
+  assertNoSymlinkPath(home);
+  currentHome = home;
+  manifestStamp = new Date().toISOString().replace(/[:.]/g, '-');
   const manifestPath = path.join(home, MANIFEST_NAME);
-  const manifest = readJson(manifestPath, null);
+  const manifest = readJson(manifestPath, null, { strict: true, object: true });
   log('\n== 卸载 ' + name + ' → ' + home + (opt.dryRun ? '（dry-run）' : '') + ' ==');
   if (!manifest) {
     log('  未找到安装清单，无法安全卸载（不猜测删除）。');
     return;
   }
+  validateManifest(manifest, home);
+  if (typeof manifest.home !== 'string' || path.resolve(manifest.home) !== path.resolve(home)) throw new Error('安装清单 home 不匹配，拒绝卸载');
+  if (manifest.tool !== name) throw new Error('安装清单工具不匹配，拒绝卸载');
+
+  const configPath = manifest.tool === 'zcode' ? path.join(home, 'cli', 'config.json')
+    : manifest.tool === 'claude' ? path.join(home, 'settings.json') : null;
+  if (configPath && fs.existsSync(configPath)) readJson(assertContained(home, configPath, { existing: true }), null, { strict: true, object: true });
 
   let removed = 0;
   let kept = 0;
+  const removable = [];
   for (const item of manifest.files) {
-    const abs = path.join(home, item.path);
+    const abs = assertContained(home, path.join(home, item.path), { existing: true });
     const now = sha256(abs);
     if (!now) continue;
     if (now !== item.sha256) {
       kept += 1;
       log('  = 保留（安装后被修改）：' + item.path);
-      continue;
-    }
-    if (!opt.dryRun) {
-      try {
-        fs.unlinkSync(abs);
-      } catch {
-        /* ignore */
-      }
-    }
-    removed += 1;
+    } else removable.push(abs);
   }
-  log('  删除 ' + removed + ' 个文件，保留 ' + kept + ' 个被修改过的文件。');
-  if (manifest.tool === 'zcode') unmergeZcodeConfig(home);
-  if (manifest.tool === 'claude') unmergeClaudeConfig(home);
-  log('  配置合并项需手工清理：' + (manifest.configs.join(', ') || '无'));
-  log('  备份保留在 ' + BACKUP_DIR + '/，确认无误后可自行删除。');
-  if (!opt.dryRun) {
-    try {
-      fs.unlinkSync(manifestPath);
-    } catch {
-      /* ignore */
+
+  transaction = { home, touched: new Map(), external: new Map() };
+  try {
+    if (!opt.dryRun) {
+      for (const abs of removable) backup(abs);
+      if (configPath && fs.existsSync(configPath)) backup(configPath);
+      backup(manifestPath);
     }
+    if (manifest.tool === 'zcode') unmergeZcodeConfig(home, null);
+    if (manifest.tool === 'claude') unmergeClaudeConfig(home, null);
+    for (const abs of removable) {
+      if (!opt.dryRun) fs.unlinkSync(abs);
+      removed += 1;
+    }
+    log('  删除 ' + removed + ' 个文件，保留 ' + kept + ' 个被修改过的文件。');
+    log('  配置合并项已安全处理；备份保留在 ' + BACKUP_DIR + '/，确认无误后可自行删除。');
+    if (!opt.dryRun) fs.unlinkSync(manifestPath);
+  } catch (e) {
+    rollbackTransaction();
+    log('  ! 卸载失败，已回滚：' + e.message);
+    process.exitCode = 1;
+  } finally {
+    transaction = null;
   }
 }
 

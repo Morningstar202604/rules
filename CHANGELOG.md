@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.7.1 — 2026-11-01
+
+### 修复
+
+- README、移植说明、钩子说明与技能索引统一到 100 个技能、8 个事件钩子、8 个共用模块和 63 个自检用例。
+- 凭据 CLI 和五平台上传改为不落盘、不进 URL/argv 的 askpass 流程；GitCode/Gitee 探活使用 `access_token` query，GitHub 使用 Bearer header。
+- 安装器增加配置预检、原子写入、回滚、manifest 路径 containment 和符号链接拒绝；Windows Git Bash 路径统一归一化。
+- 增加隔离凭据/上传安全回归与 npm lockfile，验证门禁覆盖 npm 包内容和依赖审计。
+
 ## 1.7.0 — 2026-10-29
 
 ### 新增

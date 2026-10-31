@@ -1,5 +1,6 @@
 .tmp/
 node_modules/
+__pycache__/
 .agent-work-contract-backup/
 *.log
 .DS_Store
@@ -9,3 +10,4 @@ Thumbs.db
 core/memory/
 .tmp-gh.txt
 .tmp-*.txt
+.aqg/

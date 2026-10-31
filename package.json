@@ -1,14 +1,16 @@
 {
   "name": "agent-work-contract",
-  "version": "1.7.0",
-  "description": "Portable AI working contract: rules, skills, subagents, commands and runtime hooks for any coding agent (ZCode / Claude Code / opencode / Codex / generic).",
+  "version": "1.7.1",
+  "description": "Portable AI work contract with installable rules, skills, subagents, commands, and runtime hooks for coding agents.",
   "license": "MIT",
   "private": false,
   "bin": {
     "agent-work-contract": "install.js"
   },
   "scripts": {
+    "test": "npm run selftest && npm run security:selftest",
     "selftest": "node core/hooks/selftest.js",
+    "security:selftest": "node scripts/security_selftest.js",
     "install:zcode": "node install.js --tool zcode",
     "install:claude": "node install.js --tool claude",
     "verify": "node scripts/verify.js"
@@ -20,6 +22,7 @@
     "core",
     "templates",
     "docs",
+    "scripts",
     "install.js",
     "AGENTS.md",
     "README.md"

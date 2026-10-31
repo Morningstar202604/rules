@@ -25,8 +25,8 @@ and more deterministic. For non-deterministic bugs the goal is a higher
 reproduction rate (loop 100×, parallelise, add stress) until it is debuggable.
 
 The full method — the 10 ways to construct a loop, the fidelity-cost tier
-table, loop-iteration tips, and non-deterministic strategies — is in
-[`docs/debugging-loop-guide.md`](../../docs/debugging-loop-guide.md).
+table, the loop-iteration tips, and non-deterministic strategies — is in the
+systematic-debugging workflow and its local case helper (`scripts/debug_case.py`).
 
 ### When you genuinely cannot build a loop
 

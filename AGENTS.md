@@ -83,7 +83,7 @@
 
 ## 本机凭据库（可选）
 
-若本机配置了凭据库，密钥统一存放于 `~/.agent-secrets/accounts.json`（模板与接入说明见 `docs/SECRETS.md`；历史环境可能位于 `~/.zcode/secrets/`，以 `AGENT_SECRETS_DIR` 为准）。维护命令 `python <凭据库>/accounts_cli.py list|check|sync|store-git|env|path`。脚本读该 JSON 取凭据（账号专属环境变量 → 本机库 → 通用环境变量），或 `eval "$(python <凭据库>/accounts_cli.py env)"`。git push/pull 建议注入凭据管理器，普通 https URL 即可。纪律：不打印、不提交、不外传密钥值；轮换先改提供商再改本库并 `sync`。未配置凭据库时跳过本节，不得因此阻塞任务。
+若本机配置了凭据库，密钥统一存放于 `~/.agent-secrets/accounts.json`（模板与接入说明见 `docs/SECRETS.md`；历史环境可能位于 `~/.zcode/secrets/`，以 `AGENT_SECRETS_DIR` 为准）。维护命令 `python <凭据库>/accounts_cli.py list|check|path`；旧的 `sync`、`store-git`、`env` 命令会拒绝执行，避免把密钥写入环境文件、Git 凭据文件、命令行参数或标准输出。多平台上传使用 `scripts/upload_all.sh`，由 Git askpass 在子进程内按账号读取凭据。纪律：不打印、不提交、不外传密钥值；轮换先改提供商再改本库。未配置凭据库时跳过本节，不得因此阻塞任务。
 
 ## 九、用户提示词润色（每轮强制）
 

@@ -1,6 +1,6 @@
 ---
 name: git-workflow
-description: Use when performing git operations 鈥?commits, branches, rebases, merges, conflict resolution, history cleanup, or recovering lost work.
+description: Use when performing git operations — commits, branches, rebases, merges, conflict resolution, history cleanup, or recovering lost work.
 ---
 
 # Git Workflow
@@ -10,7 +10,7 @@ description: Use when performing git operations 鈥?commits, branches, rebases, 
 - Never commit secrets, build output, or editor state. Check `git diff --cached` first.
 
 ## Branches
-- Branch from the default branch, name by intent: `feat/鈥, `fix/鈥, `chore/鈥.
+- Branch from the default branch, name by intent: `feat/<intent>`, `fix/<intent>`, `chore/<intent>`.
 - Rebase local unpublished work; merge published history.
 
 ## Safety
