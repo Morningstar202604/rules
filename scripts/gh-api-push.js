@@ -131,11 +131,13 @@ async function createBlob(repo, file, token) {
   // 否则远端会保留已删文件（这是运行态垃圾清理后仍残留的原因）。
   const remoteTree = await call('GET', `${repo}/git/trees/${baseTree}?recursive=1`, null, token);
   if (remoteTree.code !== 200) { console.error('tree read failed', remoteTree.code); process.exit(1); }
-  const remotePaths = new Set(
-    (remoteTree.body.tree || []).filter((x) => x.type === 'blob').map((x) => x.path)
+  const remoteEntries = new Map(
+    (remoteTree.body.tree || [])
+      .filter((x) => x.type === 'blob')
+      .map((x) => [x.path, { sha: x.sha, mode: x.mode }])
   );
   const localPaths = new Set(files);
-  const deletions = [...remotePaths].filter((p) => !localPaths.has(p));
+  const deletions = [...remoteEntries.keys()].filter((p) => !localPaths.has(p));
 
   const tree = [];
   for (const p of deletions) {
@@ -143,12 +145,24 @@ async function createBlob(repo, file, token) {
   }
   if (deletions.length) console.log('deletions:', deletions.length);
 
+  let reused = 0;
+  let created = 0;
   for (const f of files) {
     const abs = path.join(ROOT, f);
     if (!fs.existsSync(abs)) continue;
-    const sha = await createBlob(repo, f, token);
-    tree.push({ path: f, mode: entries.get(f).mode, type: 'blob', sha });
+    const local = entries.get(f);
+    const remote = remoteEntries.get(f);
+    let sha;
+    if (remote && remote.sha === local.sha) {
+      sha = remote.sha;
+      reused += 1;
+    } else {
+      sha = await createBlob(repo, f, token);
+      created += 1;
+    }
+    tree.push({ path: f, mode: local.mode, type: 'blob', sha });
   }
+  console.log(`blobs reused: ${reused}, created: ${created}`);
 
   // 分块提交 tree（避免单请求过大）
   let currentTree = baseTree;
