@@ -52,6 +52,8 @@ function loadToken(owner) {
 function call(method, url, body, token) {
   return new Promise((resolve) => {
     const data = body ? JSON.stringify(body) : null;
+    let settled = false;
+    const finish = (value) => { if (!settled) { settled = true; resolve(value); } };
     const req = https.request(url, {
       method,
       headers: {
@@ -67,19 +69,24 @@ function call(method, url, body, token) {
       res.on('end', () => {
         let parsed;
         try { parsed = JSON.parse(d); } catch { parsed = null; }
-        resolve({ code: res.statusCode, body: parsed });
+        finish({ code: res.statusCode, body: parsed });
       });
     });
-    req.setTimeout(15000, () => req.destroy(new Error('request timeout')));
-    req.on('error', () => resolve({ code: 0, body: null }));
+    req.setTimeout(30000, () => req.destroy(new Error('request timeout')));
+    req.on('error', () => finish({ code: 0, body: null }));
     if (data) req.write(data);
     req.end();
   });
 }
 
-function listFiles() {
-  const out = execSync('git ls-files', { cwd: ROOT, encoding: 'utf8' });
-  return out.split('\n').map((s) => s.trim()).filter(Boolean);
+function gitEntries() {
+  const out = execFileSync('git', ['ls-files', '-s'], { cwd: ROOT, encoding: 'utf8' });
+  const entries = new Map();
+  for (const line of out.split('\n')) {
+    const match = line.match(/^(\d+) ([0-9a-f]+) \d+\t(.+)$/);
+    if (match) entries.set(match[3], { mode: match[1], sha: match[2] });
+  }
+  return entries;
 }
 
 function gitBlob(file) {
@@ -90,10 +97,17 @@ function gitBlob(file) {
   });
 }
 
-function gitMode(file) {
-  const out = execFileSync('git', ['ls-files', '-s', '--', file], { cwd: ROOT, encoding: 'utf8' });
-  const match = out.match(/^(\d+) /);
-  return match ? match[1] : '100644';
+async function createBlob(repo, file, token) {
+  const buf = gitBlob(file);
+  if (buf.length > 5 * 1024 * 1024) throw new Error('文件超过 GitHub API 5 MiB 限制：' + file);
+  const result = await call('POST', `${repo}/git/blobs`, {
+    content: buf.toString('base64'),
+    encoding: 'base64',
+  }, token);
+  if (result.code !== 201 || !result.body?.sha) {
+    throw new Error('blob 创建失败：' + file + '（HTTP ' + result.code + '）');
+  }
+  return result.body.sha;
 }
 
 (async () => {
@@ -109,7 +123,8 @@ function gitMode(file) {
   if (parentCommit.code !== 200 || !parentCommit.body?.tree?.sha) { console.error('parent commit read failed', parentCommit.code); process.exit(1); }
   const baseTree = parentCommit.body.tree.sha;
 
-  const files = listFiles();
+  const entries = gitEntries();
+  const files = [...entries.keys()];
   console.log('files:', files.length);
 
   // 关键：Git Data API 的 tree 是「叠加」语义，删除文件必须显式传 sha:null，
@@ -131,9 +146,8 @@ function gitMode(file) {
   for (const f of files) {
     const abs = path.join(ROOT, f);
     if (!fs.existsSync(abs)) continue;
-    const buf = gitBlob(f);
-    if (buf.length > 5 * 1024 * 1024) { console.log('skip large', f); continue; }
-    tree.push({ path: f, mode: gitMode(f), type: 'blob', content: buf.toString('base64'), encoding: 'base64' });
+    const sha = await createBlob(repo, f, token);
+    tree.push({ path: f, mode: entries.get(f).mode, type: 'blob', sha });
   }
 
   // 分块提交 tree（避免单请求过大）
