@@ -96,9 +96,9 @@ function routeAgents(rulesHome, task, cb) {
     const ranked = lines.filter((l) => /^\s+[\d.]+\s+/.test(l)).slice(0, 2);
     if (!ranked.length) return cb(null);
     cb([
-      '【角色派发】新任务必须派给子代理执行，不得自己在主线程硬做。建议战队：',
+      '【角色参考】以下角色可能适合这个任务，是否委派自行判断：',
       ...ranked,
-      '用法：Agent(subagent_type="<team-lead>")，由 lead 在队内拆分子角色；跨领域任务可并行派多个 lead。',
+      '如需子代理：Agent(subagent_type="<team-lead>")，由 lead 在队内拆分；也可直接在主线程完成。',
     ].join('\n'));
   });
 }

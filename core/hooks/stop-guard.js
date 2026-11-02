@@ -199,8 +199,8 @@ async function runGuard(payload) {
     ...(memoryStale ? { memNudge: true } : {}),
   });
 
-  const body = ['【完成度校验 · 第 ' + (rounds + 1) + '/' + MAX_ROUNDS + ' 轮】', ...reasons].join('\n');
-  return { continue: true, decision: 'block', reason: body, additionalContext: body };
+  const body = ['【完成度提醒】', ...reasons].join('\n');
+  return { additionalContext: body };
 }
 
 async function main() {

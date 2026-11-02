@@ -143,7 +143,7 @@ const CASES = [
     expect: (o, cwd) => m.readState(cwd).skipGuard === true },
   { name: 'guard-bash: 长驻服务启动登记台账', script: 'guard-bash.js',
     payload: { tool_name: 'Bash', cwd: CASE_CWD, tool_input: { command: 'npm run dev' } },
-    expect: (o) => o?.hookSpecificOutput?.additionalContext?.includes('台账') && o?.hookSpecificOutput?.additionalContext?.includes('项目收尾时统一关闭') },
+    expect: (o) => o?.hookSpecificOutput?.additionalContext?.includes('长驻服务启动') && o?.hookSpecificOutput?.additionalContext?.includes('端口') },
   { name: 'guard-bash: 指定端口提示先查占用', script: 'guard-bash.js',
     payload: { tool_name: 'Bash', cwd: CASE_CWD, tool_input: { command: 'vite dev --port 5173' } },
     expect: (o) => o?.hookSpecificOutput?.additionalContext?.includes('5173') },
@@ -160,10 +160,10 @@ const CASES = [
     setup: (cwd) => prepState(cwd, { runningProcs: [{ command: 'npm run dev', startedAt: new Date().toISOString() }], stopRounds: 0 }),
     payload: (cwd) => ({ session_id: 'st-sess', cwd }),
     expect: (o) => o === null },
-  { name: 'stop-guard: closing 阶段未关进程阻断收尾', script: 'stop-guard.js',
+  { name: 'stop-guard: closing 阶段未关进程给出提醒', script: 'stop-guard.js',
     setup: (cwd) => prepState(cwd, { projectPhase: 'closing', runningProcs: [{ command: 'npm run dev', startedAt: new Date().toISOString() }], stopRounds: 0 }),
     payload: (cwd) => ({ session_id: 'st-sess', cwd }),
-    expect: (o) => o?.decision === 'block' && !!o.reason?.includes('项目已进入收尾') },
+    expect: (o) => !o?.decision && !!o?.additionalContext?.includes('项目已进入收尾') },
   { name: 'guard-write: 工作区内写入放行', script: 'guard-write.js',
     setup: (cwd) => { fs.mkdirSync(path.join(cwd, 'src'), { recursive: true }); },
     payload: (cwd) => ({ tool_name: 'Write', cwd, tool_input: { file_path: path.join(cwd, 'src', 'a.ts') } }),
@@ -183,27 +183,26 @@ const CASES = [
   { name: 'session-start: 无记忆提示建立', script: 'session-start.js',
     payload: (cwd) => ({ session_id: 'st-sess2', cwd, source: 'startup' }),
     expect: (o) => !!o?.additionalContext && o.additionalContext.includes('尚不存在') },
-  { name: 'user-prompt: 普通指令注入润色与定位', script: 'user-prompt.js',
+  { name: 'user-prompt: 普通指令注入上下文定位', script: 'user-prompt.js',
     payload: (cwd) => ({ session_id: 'st-sess', cwd, prompt: '继续做上次没完成的部分' }),
-    expect: (o) => !!o?.additionalContext && o.additionalContext.includes('润色') && o.additionalContext.includes('上下文记忆') },
-  { name: 'user-prompt: 斜杠命令跳过润色只留定位', script: 'user-prompt.js',
+    expect: (o) => !!o?.additionalContext && o.additionalContext.includes('上下文记忆') && !o.additionalContext.includes('润色') },
+  { name: 'user-prompt: 斜杠命令只留定位', script: 'user-prompt.js',
     payload: (cwd) => ({ session_id: 'st-sess', cwd, prompt: '/commit' }),
     expect: (o) => !!o?.additionalContext && !o.additionalContext.includes('润色') && o.additionalContext.includes('上下文记忆') },
-  { name: 'user-prompt: 新任务注入意图识别', script: 'user-prompt.js',
+  { name: 'user-prompt: 不再强制意图识别与角色派发', script: 'user-prompt.js',
     payload: (cwd) => ({ session_id: 'st-sess', cwd, prompt: '帮我重构支付模块，要求兼容旧接口并补齐回归测试' }),
-    expect: (o) => !!o?.additionalContext && o.additionalContext.includes('意图识别') && o.additionalContext.includes('intent-recognition') },
-  { name: 'user-prompt: 新任务注入角色派发', script: 'user-prompt.js',
+    expect: (o) => !o?.additionalContext || (!o.additionalContext.includes('必须') && !o.additionalContext.includes('候选方案对比')) },
+  { name: 'user-prompt: 新任务不强制角色派发', script: 'user-prompt.js',
     payload: (cwd) => ({ session_id: 'st-sess', cwd, prompt: '帮我写一篇小红书种草文案，推广新款保温杯' }),
-    // 路由依赖外部 Python（CI 的 windows runner 可能没有）：有则必须注入，
-    // 无则必须优雅降级（不注入、不报错）。两种情况都算通过，崩溃才算失败。
+    // 路由依赖外部 Python：有则给可选参考，无则静默降级；两种情况都算通过。
     expect: (o) => o === null || (!!o?.additionalContext
-      && (!o.additionalContext.includes('角色派发') || o.additionalContext.includes('subagent_type'))) },
-  { name: 'user-prompt: 纯确认不触发意图识别', script: 'user-prompt.js',
+      && !o.additionalContext.includes('必须')) },
+  { name: 'user-prompt: 纯确认不触发路由', script: 'user-prompt.js',
     payload: (cwd) => ({ session_id: 'st-sess', cwd, prompt: '继续' }),
-    expect: (o) => !!o?.additionalContext && !o.additionalContext.includes('意图识别') },
-  { name: 'user-prompt: 短句不触发意图识别', script: 'user-prompt.js',
+    expect: (o) => !!o?.additionalContext && !o.additionalContext.includes('角色参考') },
+  { name: 'user-prompt: 短句不触发路由', script: 'user-prompt.js',
     payload: (cwd) => ({ session_id: 'st-sess', cwd, prompt: '好的' }),
-    expect: (o) => !o?.additionalContext || !o.additionalContext.includes('意图识别') },
+    expect: (o) => !o?.additionalContext || !o.additionalContext.includes('角色参考') },
   { name: 'plan-sync: 计划落盘并回报剩余', script: 'plan-sync.js',
     payload: (cwd) => ({ session_id: 'st-sess', cwd, tool_name: 'TodoWrite',
       tool_input: { todos: [ { content: '实现 A', status: 'pending' }, { content: '实现 B', status: 'completed' } ] } }),
@@ -254,10 +253,10 @@ const CASES = [
     setup: (cwd) => prepState(cwd, { openTodos: ['完成剩余模块'], stopRounds: 0 }),
     payload: (cwd) => ({ session_id: 'st-sess', cwd }),
     expect: (o) => o === null },
-  { name: 'stop-guard: closing 阶段未完成待办阻断', script: 'stop-guard.js',
+  { name: 'stop-guard: closing 阶段未完成待办给出提醒', script: 'stop-guard.js',
     setup: (cwd) => prepState(cwd, { projectPhase: 'closing', openTodos: ['完成剩余模块'], stopRounds: 0 }),
     payload: (cwd) => ({ session_id: 'st-sess', cwd }),
-    expect: (o) => o?.decision === 'block' && !!o.reason?.includes('未完成') },
+    expect: (o) => !o?.decision && !!o?.additionalContext?.includes('未完成') },
   { name: 'stop-guard: closing 三轮后放行', script: 'stop-guard.js',
     setup: (cwd) => prepState(cwd, { projectPhase: 'closing', openTodos: ['完成剩余模块'], stopRounds: 0 }),
     payload: (cwd) => ({ session_id: 'st-sess', cwd }),
@@ -310,13 +309,13 @@ const CASES = [
     payload: (cwd) => ({ session_id: 'st-sess', cwd }),
     multiRun: 2,
     expect: (o) => o === null },
-  { name: 'cleanup-check: 临时文件与改动阻断', script: 'cleanup-check.js',
+  { name: 'cleanup-check: 临时文件与改动给出提醒', script: 'cleanup-check.js',
     setup: (cwd) => {
       prepState(cwd, { changedFiles: ['src/a.ts'], turnStartedAt: new Date().toISOString(), cleanupNudged: false });
       fs.writeFileSync(path.join(cwd, 'tmp-scratch.js'), 'x', 'utf8');
     },
     payload: (cwd) => ({ session_id: 'st-sess', cwd }),
-    expect: (o) => o?.decision === 'block' && !!o.reason?.includes('临时/备份文件') },
+    expect: (o) => !o?.decision && !!o?.additionalContext?.includes('临时/备份文件') },
   { name: 'cleanup-check: 已提醒不重复', script: 'cleanup-check.js',
     setup: (cwd) => prepState(cwd, { changedFiles: ['src/a.ts'], turnStartedAt: new Date().toISOString(), cleanupNudged: true }),
     payload: (cwd) => ({ session_id: 'st-sess', cwd }),
@@ -359,10 +358,10 @@ for (const c of CASES) {
     }
     if (c.multiRun) {
       const parsed = outputs.map((out) => (out ? JSON.parse(out) : null));
-      const blocked = parsed.slice(0, -1).every((o) => o?.decision === 'block');
+      const nudged = parsed.slice(0, -1).every((o) => !!o && (o.decision === 'block' || typeof o.additionalContext === 'string'));
       obj = parsed[parsed.length - 1];
-      if (!blocked) {
-        console.log(`FAIL ${c.name} -> 前 N-1 轮未按预期阻断`);
+      if (!nudged) {
+        console.log(`FAIL ${c.name} -> 前 N-1 轮未按预期给出提醒`);
         failed += 1;
         continue;
       }

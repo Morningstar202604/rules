@@ -118,8 +118,8 @@ async function runCached(payload, state) {
   if (!lines.length) return null;
 
   m.writeState(cwd, { ...state, cleanupNudged: true });
-  const body = ['【收尾检查】', ...lines.filter(Boolean), '', '逐条处理完再收尾：该删的删、该更新的更新、该归档的归档。'].join('\n');
-  return { continue: true, decision: 'block', reason: body, additionalContext: body };
+  const body = ['【收尾参考】', ...lines.filter(Boolean), '', '以上为提示，按实际情况决定是否处理。'].join('\n');
+  return { additionalContext: body };
 }
 
 async function main() {

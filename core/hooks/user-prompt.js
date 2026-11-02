@@ -22,8 +22,7 @@ async function main() {
   recall.markTurnStart(cwd, payload, prompt);
 
   const parts = [];
-  const p = polish.build(prompt, { intent: isNewTask });
-  if (p) parts.push(p);
+  // 不注入提示词润色/意图识别模板；仅在有实质新任务时给可选的路由参考。
 
   if (isNewTask) {
     const routed = await new Promise((resolve) =>
