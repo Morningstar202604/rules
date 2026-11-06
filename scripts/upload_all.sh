@@ -46,7 +46,10 @@ while IFS=$'\t' read -r platform owner url; do
   echo "== push $platform/$owner =="
   ok=0
   for attempt in 1 2 3; do
-    if out=$(AGENT_SECRETS_DIR="$VAULT" AGENT_GIT_PLATFORM="$platform" AGENT_GIT_ACCOUNT="$owner" \
+    if [ "$platform" = "github" ]; then
+      # GitHub 走 REST API：443 直连常被重置，git 协议不可靠；API 可复用 blob 且保持 commit SHA 一致。
+      if out=$(node "$REPO_DIR/scripts/gh-api-push.js" "$owner" --branch "$BRANCH" 2>&1); then rc=0; else rc=$?; fi
+    elif out=$(AGENT_SECRETS_DIR="$VAULT" AGENT_GIT_PLATFORM="$platform" AGENT_GIT_ACCOUNT="$owner" \
       GIT_ASKPASS="$ASKPASS" GIT_TERMINAL_PROMPT=0 \
       git -c credential.helper= -C "$REPO_DIR" push "$url" "HEAD:refs/heads/$BRANCH" 2>&1); then
       rc=0
