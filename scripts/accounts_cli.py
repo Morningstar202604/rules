@@ -62,12 +62,14 @@ def ensure_private_file(write=False):
             result = subprocess.run(
                 ["icacls", str(ACCOUNTS), "/reset"],
                 check=False, capture_output=True, text=True,
+                encoding="utf-8", errors="replace",
             )
             if result.returncode == 0:
                 result = subprocess.run(
                     ["icacls", str(ACCOUNTS), "/inheritance:r", "/grant:r", f"{user}:{grant}",
                      "/grant", "*S-1-5-18:F", "/grant", "*S-1-5-32-544:F"],
                     check=False, capture_output=True, text=True,
+                    encoding="utf-8", errors="replace",
                 )
         except OSError:
             sys.exit("Windows ACL 工具不可用，拒绝读取凭据库")
