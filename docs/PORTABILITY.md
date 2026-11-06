@@ -15,17 +15,17 @@
 | 子代理 | `agents/*.md` | `agents/*.md` | `agents/*.md` | `agents/*.md` | `agents/*.md` |
 | 斜杠命令 | `commands/*.md` | `commands/*.md` | `commands/*.md` | `commands/*.md` | `commands/*.md` |
 | 钩子 | 支持（`cli/config.json`） | 支持（`settings.json`） | 不支持 | 不支持 | 不支持 |
-| 运行时门禁 | 8 个事件钩子 + cleanup-check + ledger 台账 | 8 个事件钩子（无 `PostToolUseFailure`，失败由 Bash 结果推断） | 无 | 无 | 无 |
+| 运行时状态记录 | 8 个事件钩子 + cleanup-check + ledger 台账 | 8 个事件钩子（无 `PostToolUseFailure`，失败由 Bash 结果推断） | 无 | 无 | 无 |
 
 ## 3. 无钩子工具的降级清单
 
-钩子承担四类强制，没有钩子时改由规则文本 + 模型自律：
+钩子承担四类自动化，没有钩子时改由规则文本 + 模型自律：
 
-| 强制项 | 钩子实现 | 无钩子时 |
+| 能力 | 钩子实现 | 无钩子时 |
 |---|---|---|
 | 记忆文件注入 | `session-start` / `user-prompt` | 会话开始手动读 `memory/<项目>-<hash>.md`；路径规则见 `AGENTS.md` §十 |
 | 计划落盘 | `plan-sync` | 写完 TodoWrite 后手工把计划贴进记忆文件「当前计划」 |
-| 验证门禁 | `track-verify` + `stop-guard` | 收尾前自查：改动是否跑了 test/lint/typecheck，贴真实输出 |
+| 验证状态记录 | `track-verify` + `stop-guard` | 收尾前自查：改动是否跑了 test/lint/typecheck，贴真实输出 |
 | 进程/临时文件 | `guard-bash` + `ledger` + `stop-guard` + `cleanup-check` | 收尾前自查 `netstat`/`lsof` 与目录列表 |
 
 ## 4. 钩子协议差异

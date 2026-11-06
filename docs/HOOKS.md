@@ -17,13 +17,13 @@
 
 ### user-prompt.js（UserPromptSubmit）
 
-合并两件事：注入「提示词润色」规则（`lib/polish.js`）+ 注入记忆定位（`lib/recall.js`）。纯停止短语（"停""算了""暂停"）会把 `skipGuard` 置为 true，本轮收尾不阻断。
+注入记忆定位（`lib/recall.js`）；新任务首轮可附可选的路由参考（`lib/router.js`）。纯停止短语（"停""算了""暂停"）会把 `skipGuard` 置为 true，本轮只提示不提醒。
 
 ### guard-write.js（PreToolUse · Edit|Write|ApplyPatch）
 
 - 敏感文件（`.env`、`*.pem`、`id_rsa`、`credentials.json`、`accounts.json` 等）→ 只提示，不阻断。
 - 工作区外写入 → 提示边界；规则安装目录内写入放行（升级自身不受影响）。
-- 代码文件写入 → 记 `changedFiles`、`needsVerify=true`，把验证门禁挂上。
+- 代码文件写入 → 记 `changedFiles`、`needsVerify=true`，供收尾时提醒补齐验证。
 
 ### guard-bash.js（PreToolUse · Bash）
 
@@ -38,16 +38,16 @@
 
 ### track-verify.js（PostToolUse / PostToolUseFailure · Bash）
 
-用正则识别验证类命令（`npm test`、`vitest`、`pytest`、`cargo test`、`tsc --noEmit`、`eslint` 等），记录 `lastVerifyOk`；通过则解除 `needsVerify`。
+用正则识别验证类命令（`npm test`、`vitest`、`pytest`、`cargo test`、`tsc --noEmit`、`eslint` 等），记录 `lastVerifyOk` 与 `needsVerify` 状态。
 
 ### stop-guard.js（Stop）
 
-按项目阶段分支：
+按项目阶段分支，只注入提醒、不返回 `decision: block`：
 
-- `active`（默认）：只检查 `needsVerify`（改了代码没验证）与记忆未落盘；未完成任务与运行中进程属于正常进行中，**不阻断**，也不触发清理检查。
-- `closing`：额外强制 `runningProcs` 清零与 `openTodos` 清零，然后串联 `cleanup-check`。
+- `active`（默认）：提示 `needsVerify`（改了代码没验证）与记忆未落盘；未完成任务与运行中进程属于正常进行中，不提示。
+- `closing`：额外提示 `runningProcs` 未清零与 `openTodos` 未完成，然后串联 `cleanup-check`。
 
-命中任一条件返回 `decision: block`，最多阻断 3 轮；用户喊停或达到上限时只提示不阻断。
+同一轮最多提示 3 次；用户喊停或达到上限时不再重复。
 
 `persistentProcs`（`state.json` 里的正则数组）可声明"常驻不关"的进程，命中即从存活清单剔除。
 

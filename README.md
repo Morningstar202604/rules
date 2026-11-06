@@ -2,7 +2,7 @@
 
 一套可移植的 AI 工作契约：**规则 + 技能 + 子代理 + 命令 + 运行时钩子**，一条命令装进任意编程智能体（ZCode / Claude Code / opencode / Codex / 通用目录），装完即用。
 
-不是提示词合集，而是带运行时门禁的工程规范：任务未验证、进程未关闭、临时文件未清理时，钩子会拦住"提前收工"。
+不是提示词合集，而是带工程纪律的规范集合：规则、技能、子代理与钩子协同工作；钩子只做状态提示与台账记录，不阻断收尾、不弹权限窗。
 
 ## 一条命令复用
 
@@ -46,16 +46,16 @@ THIRD_PARTY_NOTICES.md 上游技能与子代理的许可声明
 | 钩子 | 触发 | 行为 |
 |---|---|---|
 | `session-start` | 会话开始 | 注入工作区记忆文件路径与标题索引 |
-| `user-prompt` | 每轮输入 | 注入简短的「提示词润色」提醒 + 记忆定位；识别"停"类短语放行门禁 |
+| `user-prompt` | 每轮输入 | 注入记忆定位与可选路由参考；识别"停"类短语静默放行 |
 | `guard-write` | 写文件前 | 敏感文件（.env / 密钥 / 凭据）提示；工作区外写入提示；登记改动待验证 |
 | `guard-bash` | 执行命令前 | 13 条危险命令（rm -rf、DROP、force push 之外的不可逆操作等）提示；密钥类 git 操作提示；长驻服务登记到台账 |
 | `plan-sync` | TodoWrite 后 | 把计划写进记忆文件的「当前计划」区块 |
-| `track-verify` | Bash 执行后 | 识别测试/lint/类型检查命令并记录结果，通过才解除验证门禁 |
-| `stop-guard` | 准备收尾 | `active` 阶段只拦「未验证改动 / 记忆未落盘」；`closing` 阶段额外拦未关进程与未完成待办（最多 3 轮） |
-| `cleanup-check` | 项目收尾串联 | 只在 `phase closing` 时检查临时文件、待同步文档、本轮改动清单，阻断一次 |
+| `track-verify` | Bash 执行后 | 识别测试/lint/类型检查命令并记录结果 |
+| `stop-guard` | 准备收尾 | 提示「未验证改动 / 记忆未落盘」；`closing` 阶段额外提示未关进程与未完成待办（最多 3 轮，不阻断） |
+| `cleanup-check` | 项目收尾串联 | 只在 `phase closing` 时检查临时文件、待同步文档、本轮改动清单，仅提示 |
 | `ledger` | 手动 CLI | 台账查询与变更：`status` / `phase` / `add-proc` / `rm-proc` / `add-file` / `artifact` |
 
-所有钩子只注入提示或阻断收尾，**不修改用户命令、不弹权限窗、不杀进程**。详见 `docs/HOOKS.md`。
+所有钩子只注入提示或记录台账，**不修改用户命令、不阻断收尾、不弹权限窗、不杀进程**。详见 `docs/HOOKS.md`。
 
 ## 项目阶段与台账
 
@@ -64,7 +64,7 @@ THIRD_PARTY_NOTICES.md 上游技能与子代理的许可声明
 ```bash
 node <规则目录>/hooks/ledger.js status                          # 阶段 / 未完成任务 / 进程 / 改动文件 / 交付物
 node <规则目录>/hooks/ledger.js add-proc --cmd "pnpm dev" --pid 1234 --port 5173
-node <规则目录>/hooks/ledger.js phase closing                   # 进入收尾，此时才强制清进程与待办
+node <规则目录>/hooks/ledger.js phase closing                   # 进入收尾阶段，额外检查进程与待办
 node <规则目录>/hooks/ledger.js phase done
 ```
 
@@ -92,7 +92,7 @@ node <规则目录>/hooks/ledger.js phase done
 | Codex | `AGENTS.md` | `skills/` | `agents/` | `commands/` | 无 |
 | 通用 | `~/.agent-rules/AGENTS.md` | `skills/` | `agents/` | `commands/` | 无 |
 
-没有钩子能力的工具自动降级：规则里的「记忆 / 收尾 / 验证」章节仍在，模型按文执行，只是没有运行时强制。降级策略见 `docs/PORTABILITY.md`。
+没有钩子能力的工具自动降级：规则里的「记忆 / 收尾 / 验证」章节仍在，模型按文执行，只是少了自动化状态记录。降级策略见 `docs/PORTABILITY.md`。
 
 ## 在任意程序里复用的正确姿势
 
