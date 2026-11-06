@@ -54,28 +54,43 @@ function call(method, url, body, token) {
     const data = body ? JSON.stringify(body) : null;
     let settled = false;
     const finish = (value) => { if (!settled) { settled = true; resolve(value); } };
-    const req = https.request(url, {
-      method,
-      headers: {
-        'User-Agent': 'agent-rules-push',
-        Accept: 'application/vnd.github+json',
-        Authorization: 'Bearer ' + token,
-        'Content-Type': 'application/json',
-        'Content-Length': data ? Buffer.byteLength(data) : 0,
-      },
-    }, (res) => {
-      let d = '';
-      res.on('data', (c) => { d += c; });
-      res.on('end', () => {
-        let parsed;
-        try { parsed = JSON.parse(d); } catch { parsed = null; }
-        finish({ code: res.statusCode, body: parsed });
+    const attempt = (retriesLeft) => {
+      const req = https.request(url, {
+        method,
+        headers: {
+          'User-Agent': 'agent-rules-push',
+          Accept: 'application/vnd.github+json',
+          Authorization: 'Bearer ' + token,
+          'Content-Type': 'application/json',
+          'Content-Length': data ? Buffer.byteLength(data) : 0,
+        },
+      }, (res) => {
+        let d = '';
+        res.on('data', (c) => { d += c; });
+        res.on('end', () => {
+          let parsed;
+          try { parsed = JSON.parse(d); } catch { parsed = null; }
+          // 5xx / 429 值得重试；4xx 直接返回让调用方读错误信息。
+          if ((res.statusCode >= 500 || res.statusCode === 429) && retriesLeft > 0) {
+            setTimeout(() => attempt(retriesLeft - 1), 2000 * (4 - retriesLeft));
+            return;
+          }
+          finish({ code: res.statusCode, body: parsed });
+        });
       });
-    });
-    req.setTimeout(30000, () => req.destroy(new Error('request timeout')));
-    req.on('error', () => finish({ code: 0, body: null }));
-    if (data) req.write(data);
-    req.end();
+      req.setTimeout(60000, () => req.destroy(new Error('request timeout')));
+      req.on('error', (e) => {
+        const msg = (e && e.message) || String(e);
+        if (retriesLeft > 0) {
+          setTimeout(() => attempt(retriesLeft - 1), 2000 * (4 - retriesLeft));
+          return;
+        }
+        finish({ code: 0, body: null, error: msg });
+      });
+      if (data) req.write(data);
+      req.end();
+    };
+    attempt(3);
   });
 }
 
@@ -105,7 +120,7 @@ async function createBlob(repo, file, token) {
     encoding: 'base64',
   }, token);
   if (result.code !== 201 || !result.body?.sha) {
-    throw new Error('blob 创建失败：' + file + '（HTTP ' + result.code + '）');
+    throw new Error('blob 创建失败：' + file + '（HTTP ' + result.code + (result.error ? ' ' + result.error : '') + '）');
   }
   return result.body.sha;
 }
@@ -175,14 +190,26 @@ async function createBlob(repo, file, token) {
     console.log(`  tree chunk ${i}-${i + chunk.length} ok`);
   }
 
-  const msg = execSync('git log -1 --format=%s', { cwd: ROOT, encoding: 'utf8' }).trim();
+  // 用本地提交的完整 message + author/committer + 时间复现同一 commit SHA。
+  // 注意：git 的 commit 对象 message 以单个 \n 结尾，GitHub API 不会自动补，必须自己带。
+  const meta = execSync('git log -1 --format=%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%B', {
+    cwd: ROOT, encoding: 'utf8',
+  }).replace(/\s+$/, '');
+  const parts = meta.split('\x00');
+  const message = parts.slice(6).join('\x00').replace(/\s+$/, '') + '\n';
+  const [an, ae, aI, cn, ce, cI] = parts;
   const commit = await call('POST', `${repo}/git/commits`, {
-    message: msg, tree: currentTree, parents: [parentSha],
+    message,
+    tree: currentTree,
+    parents: [parentSha],
+    author: { name: an, email: ae, date: aI },
+    committer: { name: cn, email: ce, date: cI },
   }, token);
   if (commit.code !== 201) { console.error('commit failed', commit.code, commit.body); process.exit(1); }
 
   const upd = await call('PATCH', `${repo}/git/refs/heads/${branch}`, { sha: commit.body.sha, force: false }, token);
   if (upd.code !== 200) { console.error('ref update failed', upd.code); process.exit(1); }
 
-  console.log(`pushed ${owner}: ${parentSha.slice(0, 7)} -> ${commit.body.sha.slice(0, 7)}`);
+  const localSha = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim();
+  console.log(`pushed ${owner}: ${parentSha.slice(0, 7)} -> ${commit.body.sha.slice(0, 7)}${commit.body.sha === localSha ? ' (same as local)' : ' (local ' + localSha.slice(0, 7) + ')'}`);
 })();
