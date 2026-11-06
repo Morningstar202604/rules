@@ -23,8 +23,8 @@ node install.js --tool claude         # 或只装某一个
 | `node install.js --tool zcode --home D:/rules` | 装到自定义目录（含 portable 场景） |
 | `node install.js --tool zcode --no-hooks` | 只装规则/技能/子代理/命令，不装钩子 |
 | `node install.js --tool zcode --uninstall` | 卸载；**安装后被改动过的文件一律保留** |
-| `npm test` | 跑钩子自检与凭据安全回归（63 个钩子用例 + 安全自检） |
-| `npm run selftest` | 只跑钩子自检（63 个用例） |
+| `npm test` | 跑钩子自检与凭据安全回归（65 个钩子用例 + 安全自检） |
+| `npm run selftest` | 只跑钩子自检（65 个用例） |
 | `npm run verify` | 跑仓库数量、文档、安装器、包内容与凭据安全门禁 |
 
 ## 装了什么
@@ -47,7 +47,7 @@ THIRD_PARTY_NOTICES.md 上游技能与子代理的许可声明
 |---|---|---|
 | `session-start` | 会话开始 | 注入工作区记忆文件路径与标题索引 |
 | `user-prompt` | 每轮输入 | 注入记忆定位与可选路由参考；识别"停"类短语静默放行 |
-| `guard-write` | 写文件前 | 敏感文件（.env / 密钥 / 凭据）提示；工作区外写入提示；登记改动待验证 |
+| `guard-write` | 写文件前 | 敏感文件（.env / 密钥 / 凭据）提示；**工作区外写入直接拦截**（系统安装位置除外）；登记改动待验证 |
 | `guard-bash` | 执行命令前 | 13 条危险命令（rm -rf、DROP、force push 之外的不可逆操作等）提示；密钥类 git 操作提示；长驻服务登记到台账 |
 | `plan-sync` | TodoWrite 后 | 把计划写进记忆文件的「当前计划」区块 |
 | `track-verify` | Bash 执行后 | 识别测试/lint/类型检查命令并记录结果 |
@@ -55,7 +55,7 @@ THIRD_PARTY_NOTICES.md 上游技能与子代理的许可声明
 | `cleanup-check` | 项目收尾串联 | 只在 `phase closing` 时检查临时文件、待同步文档、本轮改动清单，仅提示 |
 | `ledger` | 手动 CLI | 台账查询与变更：`status` / `phase` / `add-proc` / `rm-proc` / `add-file` / `artifact` |
 
-所有钩子只注入提示或记录台账，**不修改用户命令、不阻断收尾、不弹权限窗、不杀进程**。详见 `docs/HOOKS.md`。
+所有钩子默认只注入提示或记录台账，**不修改用户命令、不阻断收尾、不弹权限窗、不杀进程**；唯一例外是 `guard-write` 对工作区外写入返回 `permissionDecision: deny`。详见 `docs/HOOKS.md`。
 
 ## 项目阶段与台账
 

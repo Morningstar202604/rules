@@ -1,6 +1,6 @@
 {
   "name": "agent-work-contract",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "Portable AI work contract with installable rules, skills, subagents, commands, and runtime hooks for coding agents.",
   "license": "MIT",
   "private": false,

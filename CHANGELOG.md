@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.7.3 — 2026-11-06
+
+### 新增
+
+- `AGENTS.md` §十四 工作区硬边界：工作区是唯一边界，可在内部自由建多级目录，同名冲突改名，只有系统级安装位置例外。
+- `AGENTS.md` §十五 工具与运行方式：浏览器用内置、程序后台跑、开发完必须关、台账即事实源。
+- `AGENTS.md` §十五之二 Git 推送：统一 `-c credential.helper=` + `GIT_ASKPASS` 走 token；三平台 API 提交形式实测记录。
+- `AGENTS.md` §十一之三 第 6 条：复用已有产物，不重复安装/构建/全量测试。
+- `AGENTS.md` §十一之四 错误复盘：症状 → 根因 → 正确做法，写进记忆，下次先读。
+- `guard-write` 工作区外写入由「提示」改为 `permissionDecision: deny` 硬拦截；工作区内深层新目录放行；系统安装位置白名单放行。
+- `scripts/upload_all.sh` push 加 `-c credential.helper=`，杜绝 GCM 弹窗。
+- 自检 63 → 65 例（新增工作区外 deny、工作区内深层目录放行）。
+
 ## 1.7.2 — 2026-11-06
 
 ### 修改

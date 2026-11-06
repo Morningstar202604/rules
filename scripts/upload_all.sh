@@ -48,7 +48,7 @@ while IFS=$'\t' read -r platform owner url; do
   for attempt in 1 2 3; do
     if out=$(AGENT_SECRETS_DIR="$VAULT" AGENT_GIT_PLATFORM="$platform" AGENT_GIT_ACCOUNT="$owner" \
       GIT_ASKPASS="$ASKPASS" GIT_TERMINAL_PROMPT=0 \
-      git -C "$REPO_DIR" push "$url" "HEAD:refs/heads/$BRANCH" 2>&1); then
+      git -c credential.helper= -C "$REPO_DIR" push "$url" "HEAD:refs/heads/$BRANCH" 2>&1); then
       rc=0
     else
       rc=$?

@@ -65,13 +65,37 @@ async function main() {
   const allowedOutside = isUnder(rulesHome, abs);
   const inside = isUnder(root, abs);
   if (!inside && !allowedOutside) {
+    // 唯一例外：系统级安装位置（包管理器/工具链只能装在那里）。
+    const SYSTEM_DIRS = [
+      process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.ProgramData,
+      process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Programs') : null,
+      process.env.APPDATA, '/usr', '/opt', '/etc',
+    ].filter(Boolean).map((p) => path.resolve(p));
+    const systemAllowed = SYSTEM_DIRS.some((d) => isUnder(d, abs)) && /(^|[\\/])(node_modules|bin|lib|share)([\\/]|$)/i.test(abs);
+
+    if (!systemAllowed) {
+      const reason = [
+        `【工作区边界 · 已拦截】目标在工作区外：${abs}`,
+        `当前工作区：${root}`,
+        '规则：所有产物必须留在工作区内（可在里面自由建多级目录）；同名冲突就改名，不要挪出工作区。',
+        '唯一例外：系统级安装位置（包管理器/工具链强制要求时）。若确属该例外，请改用系统包管理器命令安装，而不是直接写文件。',
+      ].join('\n');
+      m.emit({
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'deny',
+          permissionDecisionReason: reason,
+          additionalContext: reason,
+        },
+      });
+      return;
+    }
     m.emit({
       hookSpecificOutput: {
         hookEventName: 'PreToolUse',
         additionalContext: [
-          `【工作区边界】目标在工作区外：${abs}`,
-          `当前工作区：${root}`,
-          '规则：所有产物必须留在当前工作区内；需要改外部文件时先向用户确认或改用工作区内的副本。',
+          `【系统安装位置】${abs}`,
+          '已按「系统强制安装位置」放行；请在交付里说明装了什么、为什么不能放工作区。',
         ].join('\n'),
       },
     });
