@@ -44,10 +44,10 @@ function prepState(cwd, patch) {
   m.writeState(cwd, patch);
 }
 
-function run(script, payload) {
+function run(script, payload, extraEnv) {
   const out = execFileSync(NODE, [path.join(H, script)], {
     input: JSON.stringify(payload), encoding: 'utf8',
-    env: { ...process.env, ZCODE_MEMORY_DIR: ISOLATED_MEMORY },
+    env: { ...process.env, ZCODE_MEMORY_DIR: ISOLATED_MEMORY, ...(extraEnv || {}) },
   }).trim();
   return out;
 }
@@ -174,6 +174,10 @@ const CASES = [
   { name: 'guard-write: 工作区外写入直接 deny', script: 'guard-write.js',
     payload: (cwd) => ({ tool_name: 'Write', cwd, tool_input: { file_path: path.join(os.tmpdir(), 'outside-deny-probe.ts') } }),
     expect: (o) => o?.hookSpecificOutput?.permissionDecision === 'deny' },
+  { name: 'guard-write: AGENT_ALLOWED_ROOTS 白名单放行', script: 'guard-write.js',
+    payload: (cwd) => ({ tool_name: 'Write', cwd, tool_input: { file_path: path.join(os.tmpdir(), 'allowed-root-probe.ts') } }),
+    env: { AGENT_ALLOWED_ROOTS: os.tmpdir() },
+    expect: (o) => o === null },
   { name: 'guard-write: 工作区内深层新目录放行', script: 'guard-write.js',
     payload: (cwd) => ({ tool_name: 'Write', cwd, tool_input: { file_path: path.join(cwd, 'a', 'b', 'c', 'new.ts') } }),
     expect: (o) => o === null },
@@ -358,7 +362,7 @@ for (const c of CASES) {
     let last = null;
     let outputs = [];
     for (let i = 0; i < runs; i += 1) {
-      const out = run(c.script, payload);
+      const out = run(c.script, payload, c.env);
       last = out;
       outputs.push(out);
     }

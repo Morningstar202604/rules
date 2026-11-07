@@ -23,8 +23,8 @@ node install.js --tool claude         # 或只装某一个
 | `node install.js --tool zcode --home D:/rules` | 装到自定义目录（含 portable 场景） |
 | `node install.js --tool zcode --no-hooks` | 只装规则/技能/子代理/命令，不装钩子 |
 | `node install.js --tool zcode --uninstall` | 卸载；**安装后被改动过的文件一律保留** |
-| `npm test` | 跑钩子自检与凭据安全回归（65 个钩子用例 + 安全自检） |
-| `npm run selftest` | 只跑钩子自检（65 个用例） |
+| `npm test` | 跑钩子自检与凭据安全回归（66 个钩子用例 + 安全自检） |
+| `npm run selftest` | 只跑钩子自检（66 个用例） |
 | `npm run verify` | 跑仓库数量、文档、安装器、包内容与凭据安全门禁 |
 
 ## 装了什么

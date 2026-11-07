@@ -63,7 +63,7 @@
 | `performance-profiler` | 对 Node.js、Python、Go 应用做系统性性能剖析：定位 CPU/内存/I/O 瓶颈、生成火焰图、分析包体积、优化数据库查询、用 k6 与 Artillery 跑压测。始终先测后改。何时… |
 | `plugin-creator` | Create and scaffold plugin directories for Codex with a required `.codex-plugin/plugin.json`, opti… |
 | `postgresql-table-design` | 设计或审查 PostgreSQL 数据库表结构：最佳实践、数据类型、索引、约束、性能模式与高级特性。 |
-| `process-and-artifact-ledger` | 维护运行中进程、未完成任务、改动文件与交付物的台账；项目内不强制每轮清理，项目收尾才统一完结。触发：起服务、多轮开发、进程管理、收尾清理。 |
+| `process-and-artifact-ledger` | 维护运行中进程、未完成任务、改动文件与交付物的台账；本轮起的服务在交付前关闭，构建缓存与依赖目录可跨轮复用。触发：起服务、多轮开发、进程管理、收尾清理。 |
 | `project-lifecycle` | 项目全周期管理：立项澄清→WBS 拆解→切片排期→逐片交付→项目收尾。触发：项目管理、多阶段任务、里程碑规划、接手项目、判断项目何时算完成。 |
 | `python` | Python 开发最佳实践：覆盖 Web、数据科学与自动化。 |
 | `quality-gate-checklist` | 通用交付前质检门禁。从完整性、一致性、可追溯、可复现、合规、版权、格式 7 个维度逐项 checklist 检查，不合格项标 H/M/L 分级，H 级问题不交付。全团队 P0 通用 skill，t… |

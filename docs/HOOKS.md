@@ -98,7 +98,7 @@ node hooks/ledger.js decision --title "..." --original "..." --judgment "..." --
 
 ```bash
 npm run selftest
-# ALL 65 CASES PASS
+# ALL 66 CASES PASS
 ```
 
 自检在 `<仓库>/.tmp/selftest/` 建临时工作区，通过 `ZCODE_MEMORY_DIR` 把记忆重定向到临时目录，不碰真实状态。可用 `AGENT_RULES_TEST_TMP` 改位置。

@@ -45,7 +45,7 @@
 ```
 
 - 输出协议：stdout 一行 JSON，字段限 `additionalContext` / `hookSpecificOutput` / `decision` / `continue` / `reason` / `suppressOutput` / `systemMessage`。
-- `PreToolUse` 只走 `additionalContext`，不返回 `permissionDecision`，因此不会弹权限窗。
+- `PreToolUse` 默认只走 `additionalContext`，不弹权限窗；唯一例外是 `guard-write` 对工作区外写入返回 `permissionDecision: deny`。
 
 **Claude Code**（`~/.claude/settings.json`）
 
@@ -76,7 +76,7 @@ node install.js --all
 1. 目标工具的规则文件已更新（`~/.zcode/AGENTS.md` 等）。
 2. 技能目录数量与 `docs/SKILLS.md` 一致（100 个）。
 3. 支持钩子的工具：`cli/config.json` / `settings.json` 里能看到 8 个本仓库事件钩子脚本路径；`cleanup-check` 由 `stop-guard` 在收尾阶段串联，`ledger` 为手动 CLI。
-4. 跑一次 `npm run selftest`，应为 `ALL 65 CASES PASS`。
+4. 跑一次 `npm run selftest`，应为 `ALL 66 CASES PASS`。
 
 ## 6. 定制与上游同步
 

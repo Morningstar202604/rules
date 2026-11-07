@@ -64,7 +64,14 @@ async function main() {
   const isUnder = (base, p) => p === base || p.startsWith(base + path.sep);
   const allowedOutside = isUnder(rulesHome, abs);
   const inside = isUnder(root, abs);
-  if (!inside && !allowedOutside) {
+  // 用户显式授权的额外根目录：AGENT_ALLOWED_ROOTS 用 ; 或 : 分隔（Windows 用 ;）。
+  const extraRoots = String(process.env.AGENT_ALLOWED_ROOTS || '')
+    .split(process.platform === 'win32' ? ';' : ':')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => path.resolve(s));
+  const extraAllowed = extraRoots.some((d) => isUnder(d, abs));
+  if (!inside && !allowedOutside && !extraAllowed) {
     // 唯一例外：系统级安装位置（包管理器/工具链只能装在那里）。
     const SYSTEM_DIRS = [
       process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.ProgramData,
@@ -79,6 +86,7 @@ async function main() {
         `当前工作区：${root}`,
         '规则：所有产物必须留在工作区内（可在里面自由建多级目录）；同名冲突就改名，不要挪出工作区。',
         '唯一例外：系统级安装位置（包管理器/工具链强制要求时）。若确属该例外，请改用系统包管理器命令安装，而不是直接写文件。',
+        '若确实需要写这个目录，让用户设置 AGENT_ALLOWED_ROOTS 环境变量（分号分隔）后重启会话。',
       ].join('\n');
       m.emit({
         hookSpecificOutput: {
