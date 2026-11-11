@@ -1,6 +1,6 @@
 ---
 name: agent-router
-description: "任务自动分派到对应子代理战队：离线关键词路由表 + TF-IDF 兜底，输出 team-lead 与领域。触发：新任务开始、需要派活、不确定用哪个角色、团队协作。"
+description: "按需提供子代理战队候选：离线关键词路由表 + TF-IDF 兜底，输出 team-lead 与领域，仅供选择参考。"
 description_zh: "接到任务先判它属于哪个领域、该派给哪支战队，毫秒级出结果，不用人点名。"
 license: MIT
 metadata:
@@ -12,7 +12,7 @@ metadata:
 
 # 角色路由（任务 → 战队）
 
-回答一个问题：**这个任务该派给哪支子代理战队？** 输出 team-lead 名字，由 lead 在队内再分派叶子角色。
+按需回答一个问题：**这个任务可能适合哪支子代理战队？** 输出的 team-lead 仅为候选；是否委派由宿主能力、授权与任务需求决定。
 
 路由到 lead 而不是叶子角色，是因为 220 个叶子角色之间重叠严重（`backend-engineer` / `api-designer` / `database-engineer` 边界模糊），直接路由噪声大且不稳定；18 个 lead 边界清晰，且每个 lead 本就负责队内拆分。
 

@@ -49,9 +49,15 @@ function adapt(out, event) {
   if (event === 'SessionStart' || event === 'UserPromptSubmit' || event === 'PostToolUse') {
     return { hookSpecificOutput: { hookEventName: event, additionalContext: text } };
   }
-  if (event === 'PreToolUse') {
-    return { systemMessage: text };
-  }
+ if (event === 'PreToolUse') {
+ const { additionalContext, ...hookSpecificOutput } = out.hookSpecificOutput || {};
+ return {
+ ...out,
+ additionalContext: undefined,
+ hookSpecificOutput: Object.keys(hookSpecificOutput).length ? hookSpecificOutput : undefined,
+ systemMessage: text,
+ };
+ }
   return { systemMessage: text };
 }
 

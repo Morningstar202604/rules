@@ -1,16 +1,17 @@
 {
-  "name": "agent-work-contract",
+  "name": "rules",
   "version": "1.7.4",
-  "description": "Portable AI work contract with installable rules, skills, subagents, commands, and runtime hooks for coding agents.",
+  "description": "rules: portable AI work contract with installable rules, skills, subagents, commands, and runtime hooks for coding agents.",
   "license": "MIT",
   "private": false,
   "bin": {
-    "agent-work-contract": "install.js"
+    "rules": "install.js"
   },
   "scripts": {
-    "test": "npm run selftest && npm run security:selftest",
-    "selftest": "node core/hooks/selftest.js",
-    "security:selftest": "node scripts/security_selftest.js",
+ "test": "npm run selftest && npm run security:selftest && npm run install:selftest",
+ "selftest": "node core/hooks/selftest.js",
+ "security:selftest": "node scripts/security_selftest.js",
+ "install:selftest": "node scripts/install_ownership_test.js",
     "install:zcode": "node install.js --tool zcode",
     "install:claude": "node install.js --tool claude",
     "verify": "node scripts/verify.js"

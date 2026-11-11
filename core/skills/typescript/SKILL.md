@@ -38,8 +38,8 @@ You are an expert in TypeScript development with deep knowledge of type safety a
 
 ## TypeScript Usage
 
-- Use TypeScript for all code; prefer interfaces over types
-- Avoid `any` type; create precise type definitions
+- When the project uses TypeScript, prefer it for new or changed code; follow the existing project conventions
+- Avoid `any` where practical; create precise type definitions when they improve correctness
 - Use functional components with TypeScript interfaces
 - Avoid enums; use maps instead
 - Use `readonly` for immutable properties

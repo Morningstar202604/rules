@@ -22,8 +22,8 @@
 ### guard-write.js（PreToolUse · Edit|Write|ApplyPatch）
 
 - 敏感文件（`.env`、`*.pem`、`id_rsa`、`credentials.json`、`accounts.json` 等）→ 只提示，不阻断。
-- **工作区外写入 → 返回 `permissionDecision: deny` 直接拦截**；工作区**内**任意多级新目录放行（可在里面自由建目录，同名冲突改名即可）。
-- 唯一例外：系统级安装位置（`Program Files` / `ProgramData` / `LocalAppData\Programs` / `/usr` / `/opt` 等下的 `node_modules`、`bin`、`lib`、`share`）→ 提示后放行。
+- **工作区外写入 → 只提示，不阻断**；工作区**内**任意多级新目录放行（可在里面自由建目录，同名冲突改名即可）。
+- 系统级安装位置（`Program Files` / `ProgramData` / `LocalAppData\Programs` / `/usr` / `/opt` 等下的 `node_modules`、`bin`、`lib`、`share`）同样只提示后放行。
 - 规则安装目录（`<规则目录>`）内写入放行（升级自身不受影响）。
 - 代码文件写入 → 记 `changedFiles`、`needsVerify=true`，供收尾时提醒补齐验证。
 
@@ -98,7 +98,7 @@ node hooks/ledger.js decision --title "..." --original "..." --judgment "..." --
 
 ```bash
 npm run selftest
-# ALL 66 CASES PASS
+# ALL 68 CASES PASS
 ```
 
 自检在 `<仓库>/.tmp/selftest/` 建临时工作区，通过 `ZCODE_MEMORY_DIR` 把记忆重定向到临时目录，不碰真实状态。可用 `AGENT_RULES_TEST_TMP` 改位置。

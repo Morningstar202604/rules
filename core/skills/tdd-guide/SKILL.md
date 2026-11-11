@@ -29,7 +29,7 @@ Test-driven development across Jest, Pytest, JUnit, and Vitest: generate tests, 
 | Coverage threshold | No | Percentage (default `80`). |
 | Phase (workflow) | No | `red` \| `green` \| `refactor`. |
 
-When a required input is missing, ask only once:
+When a required input is missing, infer the safest reasonable default once and proceed; ask only when the task cannot be executed without a user-owned decision:
 
 > Please provide: (1) the source code or requirement description to test; (2) the target test framework (Jest/Pytest/JUnit/Vitest/Mocha).
 > I'll use the rest as defaults: coverage-threshold=80%, phase advanced automatically by the workflow.
@@ -128,7 +128,7 @@ Other scripts: `framework_adapter.py` (cross-framework conversion), `metrics_cal
 
 ## Bounded-Autonomy Rules
 
-**Stop and ask when:** acceptance criteria are vague; boundary values are missing and need domain knowledge; the number of tests will exceed 50 (give a summary first and ask which areas to prioritize); an external dependency is undocumented; security-sensitive logic (auth, authorization, encryption, payments) needs sign-off.
+**Pause only for a genuinely user-owned decision or unavailable authorization; otherwise choose the recommended default and continue.**
 
 **Continue autonomously when:** the spec is clear and acceptance criteria are numbered; simple CRUD; the API contract is explicit (OpenAPI / typed interface); pure functions; there's an existing test pattern to follow.
 
@@ -198,7 +198,7 @@ func TestApplyDiscount(t *testing.T) {
 | CLI exit code `exit 2` | Wrong input argument | Check required parameters against the cheat sheet |
 | Generated tests are empty | `--framework` unsupported | Choose one of the 5 supported frameworks |
 | Coverage tool errors reading the report | Format unsupported | Convert to LCOV/JSON/XML first |
-| Tests still red after minimal implementation | Requirement unclear | Stop and ask the user (bounded-autonomy rules) |
+| Tests still red after minimal implementation | Requirement unclear | revisit the requirement and choose the smallest evidence-backed next step |
 
 ## Delivery Criteria
 

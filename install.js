@@ -11,6 +11,7 @@
  *   node install.js --tool codex            # 安装到 ~/.codex
  *   node install.js --tool generic --home D:/rules
  *   node install.js --all                   # 已检测到的工具全部安装
+ *   node install.js --tool zcode --profile dev  # 只装开发相关技能/代理
  *   node install.js --tool zcode --dry-run  # 只打印将做什么
  *   node install.js --tool zcode --uninstall
  *
@@ -32,11 +33,18 @@ const MANIFEST_NAME = '.agent-work-contract.json';
 const BACKUP_DIR = '.agent-work-contract-backup';
 
 function normalizeFsPath(value) {
-  if (process.platform === 'win32' && /^\/[A-Za-z]\//.test(value)) {
-    return value[1].toUpperCase() + ':\\' + value.slice(3).replaceAll('/', '\\');
-  }
-  return value;
+ if (process.platform === 'win32' && /^\/[A-Za-z]\//.test(value)) {
+ return value[1].toUpperCase() + ':\\' + value.slice(3).replaceAll('/', '\\');
+ }
+ return value;
 }
+
+function sameFsPath(left, right) {
+ const a = path.resolve(normalizeFsPath(left));
+ const b = path.resolve(normalizeFsPath(right));
+ return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
+}
+
 
 const HOOK_SCRIPTS = [
   'session-start.js',
@@ -50,18 +58,50 @@ const HOOK_SCRIPTS = [
   'ledger.js',
 ];
 
-// 官方插件已提供同名技能时跳过，避免用户级技能遮蔽功能更全的插件版。
-// ZCode 的技能按路径识别、同名取用户级优先，所以重复安装只会降低质量。
-const SKIP_SKILL_NAMES = new Set([
-  'docx',
-  'pdf',
-  'pptx',
-  'xlsx',
-  'skill-creator',
-  'visualize',
-  'plugin-creator',
-  'template',
+// A cached plugin is not proof that it is enabled. Until an active official
+// installation can be verified for a host, install the bundled skills.
+function skillSkipNames(name, home, profile) {
+  if (profile === 'dev') return devSkillSkipNames();
+  return new Set();
+}
+
+// 开发版：只装编程与工程流程相关的技能/代理，避免全行业工具箱淹没开发场景。
+const DEV_SKILLS = new Set([
+  'agent-designer', 'agent-router', 'agent-work-contract',
+  'api-design-reviewer', 'aqg-code-construction', 'aqg-evidence-closeout', 'aqg-startup-preflight',
+  'archify', 'audit', 'cache-economy', 'change-integrity', 'ci-cd-pipeline-builder',
+  'code-review', 'decision-log', 'deep-security-scan',
+  'discernment-nudge', 'docker', 'env-secrets-manager', 'executing-plans',
+  'finishing-a-development-branch', 'frontend-app-builder',
+  'frontend-design', 'frontend-testing-debugging', 'git-workflow',
+  'incremental-refactor', 'intent-recognition', 'long-run-execution', 'master-checklist',
+  'mcp-builder', 'observability-designer', 'performance-profiler', 'postgresql-table-design',
+  'process-and-artifact-ledger', 'project-lifecycle', 'python', 'quality-gate-checklist',
+  'react-best-practices', 'repo-cartography', 'repo-hygiene',
+  'rust', 'security-scan', 'senior-architect', 'session-handoff', 'shadcn', 'ship-gate',
+  'skill-author', 'skill-router', 'spec-driven-workflow',
+  'sql-database-assistant', 'supabase', 'systematic-debugging', 'task-slicing',
+  'tdd-guide', 'testing', 'toolchain-playbook', 'typescript', 'ui-ux-accessibility',
+  'verification-before-completion', 'web-search', 'writing-plans',
 ]);
+
+const DEV_AGENT_PREFIXES = ['core-', 'software-', 'fullstack-'];
+const DEV_AGENT_EXTRA = new Set(['data-sql-expert', 'data-python-engineer']);
+
+function devSkillSkipNames() {
+  const dir = path.join(CORE, 'skills');
+  return new Set(
+    fs.readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && !DEV_SKILLS.has(e.name))
+      .map((e) => e.name)
+  );
+}
+
+function isDevAgentFile(fileName) {
+  if (!fileName.endsWith('.md')) return true;
+  const base = fileName.slice(0, -3);
+  return DEV_AGENT_EXTRA.has(base) || DEV_AGENT_PREFIXES.some((p) => base.startsWith(p));
+}
 
 const args = process.argv.slice(2);
 const opt = {
@@ -71,11 +111,17 @@ const opt = {
   uninstall: args.includes('--uninstall'),
   force: args.includes('--force'),
   home: null,
+  profile: 'full',
   withHooks: !args.includes('--no-hooks'),
 };
 for (let i = 0; i < args.length; i += 1) {
   if (args[i] === '--tool' && args[i + 1]) opt.tools.push(args[++i]);
   else if (args[i] === '--home' && args[i + 1]) opt.home = path.resolve(normalizeFsPath(args[++i]));
+  else if (args[i] === '--profile' && args[i + 1]) opt.profile = args[++i];
+}
+if (!['full', 'dev'].includes(opt.profile)) {
+  console.error('未知 profile：' + opt.profile + '（可选：full / dev）');
+  process.exit(1);
 }
 
 function log(msg) {
@@ -150,18 +196,26 @@ function recordExternalCreate(file) {
   if (transaction) transaction.externalCreated.add(path.resolve(file));
 }
 
+function recordFile(manifest, abs, hash, written, before) {
+ const rel = path.relative(manifest.home, abs);
+ const prior = manifest.previousFiles.get(rel);
+ // Legacy manifests do not establish whether an identical file was created by us.
+ const owned = (written && !before) || (prior && prior.owned === true && prior.sha256 === before);
+ manifest.files.push({ path: rel, sha256: hash, owned: Boolean(owned) });
+}
+
 function copyFile(src, dest, manifest) {
   const abs = assertContained(currentHome, dest, { existing: true });
   const before = sha256(abs);
   ensureDir(path.dirname(abs));
   if (before && before === sha256(src) && !opt.force) {
-    manifest.files.push({ path: path.relative(manifest.home, abs), sha256: before });
+    recordFile(manifest, abs, before, false, before);
     return 'same';
   }
   if (before) backup(abs);
   else recordMutation(abs, false);
   if (!opt.dryRun) fs.copyFileSync(src, abs);
-  manifest.files.push({ path: path.relative(manifest.home, abs), sha256: sha256(abs) });
+  recordFile(manifest, abs, sha256(abs), true, before);
   return before ? 'updated' : 'created';
 }
 
@@ -190,7 +244,7 @@ function installRules(src, dest, manifest) {
   const repoBody = fs.readFileSync(src, 'utf8').replace(/\r\n/g, '\n').trimEnd();
   const currentBody = head.replace(/^<!-- agent-work-contract v[\d.]+ -->\n\n/, '').trimEnd();
   if (repoBody === currentBody) {
-    manifest.files.push({ path: path.relative(manifest.home, destAbs), sha256: sha256(destAbs) });
+    recordFile(manifest, destAbs, sha256(destAbs), false, sha256(destAbs));
     return 'same';
   }
 
@@ -199,11 +253,11 @@ function installRules(src, dest, manifest) {
   const before = sha256(abs);
   if (before) backup(abs);
   if (!opt.dryRun) atomicWriteText(abs, merged);
-  manifest.files.push({ path: path.relative(manifest.home, abs), sha256: sha256(abs) });
+  recordFile(manifest, abs, sha256(abs), true, before);
   return 'merged';
 }
 
-function copyTree(srcDir, destDir, manifest, skipNames) {
+function copyTree(srcDir, destDir, manifest, skipNames, filter) {
   let created = 0;
   let updated = 0;
   let same = 0;
@@ -211,6 +265,7 @@ function copyTree(srcDir, destDir, manifest, skipNames) {
     for (const e of fs.readdirSync(src, { withFileTypes: true })) {
       if (e.name === '__pycache__' || e.name === '.pytest_cache' || e.name === 'node_modules') continue;
       if (depth === 0 && skipNames && skipNames.has(e.name)) continue;
+      if (depth === 0 && filter && !filter(e.name)) continue;
       const s = path.join(src, e.name);
       const d = path.join(dest, e.name);
       if (e.isDirectory()) walk(s, d, depth + 1);
@@ -312,7 +367,13 @@ function writeManifest(file, data) {
 }
 
 function nodeBin() {
-  return process.execPath;
+ return process.execPath;
+}
+
+function isNodeExecutable(command) {
+ if (typeof command !== 'string') return false;
+ const actual = path.basename(normalizeFsPath(command.trim().replace(/^\"|\"$/g, ''))).toLowerCase();
+ return actual === 'node' || actual === 'node.exe';
 }
 
 function zcodeHookEvents(hooksDir) {
@@ -345,12 +406,27 @@ function zcodeHookEvents(hooksDir) {
   };
 }
 
+function ownHookScript(script, hooksDir) {
+  if (typeof script !== 'string') return false;
+  const abs = path.resolve(normalizeFsPath(script));
+  return HOOK_SCRIPTS.concat(['checkpoint-remind.js']).some((name) => sameFsPath(abs, path.resolve(hooksDir, name)));
+}
+
 function ownZcodeHook(entry, hooksDir) {
   const list = entry && Array.isArray(entry.hooks) ? entry.hooks : [];
   return list.some((h) => {
-    const p = Array.isArray(h.args) ? h.args.find((a) => typeof a === 'string' && a.includes(hooksDir)) : null;
-    return !!p;
+    if (!h || h.type !== 'process' || !isNodeExecutable(h.command) || !Array.isArray(h.args)) return false;
+    return h.args.length ===1 && ownHookScript(h.args[0], hooksDir);
   });
+}
+
+function removeOwnHooks(entries, hooksDir, predicate) {
+ return entries.flatMap((entry) => {
+ if (!entry || !Array.isArray(entry.hooks)) return [entry];
+ const hooks = entry.hooks.filter((hook) => !predicate({ hooks: [hook] }, hooksDir));
+ if (hooks.length === entry.hooks.length) return [entry];
+ return hooks.length ? [{ ...entry, hooks }] : [];
+ });
 }
 
 function unmergeZcodeConfig(home, manifest) {
@@ -361,8 +437,8 @@ function unmergeZcodeConfig(home, manifest) {
   let changed = false;
   for (const [event, entries] of Object.entries(cfg.hooks.events)) {
     if (!Array.isArray(entries)) continue;
-    const kept = entries.filter((e) => !ownZcodeHook(e, hooksDir));
-    if (kept.length !== entries.length) {
+const kept = removeOwnHooks(entries, hooksDir, ownZcodeHook);
+ if (JSON.stringify(kept) !== JSON.stringify(entries)) {
       changed = true;
       if (kept.length) cfg.hooks.events[event] = kept;
       else delete cfg.hooks.events[event];
@@ -383,7 +459,7 @@ function mergeZcodeConfig(home, manifest) {
   const events = (cfg.hooks && cfg.hooks.events) || {};
   const ours = zcodeHookEvents(hooksDir);
   for (const [event, entries] of Object.entries(ours)) {
-    const existing = Array.isArray(events[event]) ? events[event].filter((e) => !ownZcodeHook(e, hooksDir)) : [];
+    const existing = Array.isArray(events[event]) ? removeOwnHooks(events[event], hooksDir, ownZcodeHook) : [];
     events[event] = [...existing, ...entries];
   }
   cfg.hooks = { ...(cfg.hooks || {}), enabled: true, maxOutputBytes: 65536, timeoutMs: 30000, events };
@@ -431,7 +507,13 @@ function claudeHookEvents(hooksDir) {
 
 function ownClaudeHook(entry, hooksDir) {
   const list = entry && Array.isArray(entry.hooks) ? entry.hooks : [];
-  return list.some((h) => typeof h.command === 'string' && h.command.includes(hooksDir));
+  return list.some((h) => {
+    if (!h || h.type !== 'command' || typeof h.command !== 'string') return false;
+    const match = h.command.match(/^"([^"]+)" "([^"]+)" "([^"]+)"$/);
+ return !!match && isNodeExecutable(match[1]) &&
+ sameFsPath(match[2], path.resolve(hooksDir, 'lib', 'claude-wrap.js')) &&
+ ownHookScript(match[3], hooksDir);
+  });
 }
 
 function unmergeClaudeConfig(home, manifest) {
@@ -442,8 +524,8 @@ function unmergeClaudeConfig(home, manifest) {
   let changed = false;
   for (const [event, entries] of Object.entries(cfg.hooks)) {
     if (!Array.isArray(entries)) continue;
-    const kept = entries.filter((e) => !ownClaudeHook(e, hooksDir));
-    if (kept.length !== entries.length) {
+const kept = removeOwnHooks(entries, hooksDir, ownClaudeHook);
+ if (JSON.stringify(kept) !== JSON.stringify(entries)) {
       changed = true;
       if (kept.length) cfg.hooks[event] = kept;
       else delete cfg.hooks[event];
@@ -460,7 +542,7 @@ function mergeClaudeConfig(home, manifest) {
   const events = cfg.hooks || {};
   const ours = claudeHookEvents(hooksDir);
   for (const [event, entries] of Object.entries(ours)) {
-    const existing = Array.isArray(events[event]) ? events[event].filter((e) => !ownClaudeHook(e, hooksDir)) : [];
+    const existing = Array.isArray(events[event]) ? removeOwnHooks(events[event], hooksDir, ownClaudeHook) : [];
     events[event] = [...existing, ...entries];
   }
   cfg.hooks = events;
@@ -601,10 +683,12 @@ function installCredentialCli() {
   trackExternalMutation(cli, Boolean(before));
   const state = transaction && transaction.external.get(path.resolve(cli));
   if (before) {
-    const backupPath = path.join(vault, BACKUP_DIR, manifestStamp, 'accounts_cli.py');
-    if (!opt.dryRun) {
-      ensureDir(path.dirname(backupPath));
-      fs.copyFileSync(cli, backupPath);
+ const backupPath = path.join(vault, BACKUP_DIR, manifestStamp, 'accounts_cli.py');
+ assertNoSymlinkPath(backupPath);
+ if (hasMultipleLinks(backupPath)) throw new Error('拒绝覆盖凭据备份硬链接：' + backupPath);
+ if (!opt.dryRun) {
+ ensureDir(path.dirname(backupPath));
+ fs.copyFileSync(cli, backupPath);
       if (state) state.backup = backupPath;
     }
     log('  ~ 已备份旧凭据库 CLI → ' + backupPath);
@@ -630,29 +714,47 @@ function installProfile(name) {
   log('\n== 安装到 ' + name + ' → ' + home + (opt.dryRun ? '（dry-run）' : '') + ' ==');
 
   const manifestPath = path.join(home, MANIFEST_NAME);
-  const previous = readJson(manifestPath, null, { strict: true, object: true });
-  const manifest = {
+ const previous = readJson(manifestPath, null, { strict: true, object: true });
+ const manifest = {
     tool: name,
     version: VERSION,
     installedAt: new Date().toISOString(),
     home,
     files: [],
-    configs: [],
-  };
+ configs: [],
+ };
+ Object.defineProperty(manifest, 'previousFiles', {
+ value: new Map((previous && Array.isArray(previous.files) ? previous.files : [])
+ .filter((item) => item && typeof item.path === 'string')
+ .map((item) => [item.path, item])),
+ enumerable: false,
+ });
   transaction = { home, touched: new Map(), external: new Map() };
 
-  try {
-    preflightProfile(name, profile, home);
+ try {
+ if (previous) {
+ validateManifest(previous, home);
+ if (previous.tool !== name || typeof previous.home !== 'string' || !sameFsPath(previous.home, home)) {
+ throw new Error('安装清单宿主或 home 不匹配，拒绝共享安装目录');
+ }
+ }
+ preflightProfile(name, profile, home);
     ensureDir(home);
 
     const rulesDest = path.join(home, profile.rules);
     const st = installRules(path.join(REPO, 'AGENTS.md'), rulesDest, manifest);
     log('  ' + sym(st) + ' 规则 ' + profile.rules + (st === 'merged' ? '（已保留本机个人段落）' : ''));
 
-    const skillStats = copyTree(path.join(CORE, 'skills'), path.join(home, profile.skills), manifest, SKIP_SKILL_NAMES);
+    const skillStats = copyTree(path.join(CORE, 'skills'), path.join(home, profile.skills), manifest, skillSkipNames(name, home, opt.profile));
     log('  ' + sym('updated') + ' 技能 → ' + profile.skills + '/（新增 ' + skillStats.created + '，更新 ' + skillStats.updated + '，未变 ' + skillStats.same + '）');
 
-    const agentStats = copyTree(path.join(CORE, 'agents'), path.join(home, profile.agents), manifest);
+    const agentStats = copyTree(
+      path.join(CORE, 'agents'),
+      path.join(home, profile.agents),
+      manifest,
+      undefined,
+      (fileName) => opt.profile !== 'dev' || isDevAgentFile(fileName)
+    );
     log('  ' + sym('updated') + ' 子代理 → ' + profile.agents + '/（新增 ' + agentStats.created + '，更新 ' + agentStats.updated + '，未变 ' + agentStats.same + '）');
 
     const cmdStats = copyTree(path.join(CORE, 'commands'), path.join(home, profile.commands), manifest);
@@ -663,10 +765,28 @@ function installProfile(name) {
       log('  ' + sym('updated') + ' 钩子 → ' + profile.hooks + '/（新增 ' + hookStats.created + '，更新 ' + hookStats.updated + '）');
     }
 
-    if (profile.after && (opt.withHooks || name === 'opencode')) profile.after(home, manifest);
-    if (!opt.dryRun) installCredentialCli();
+ if (profile.after && (opt.withHooks || name === 'opencode')) profile.after(home, manifest);
+ else if (!opt.withHooks && name === 'zcode') unmergeZcodeConfig(home, manifest);
+ else if (!opt.withHooks && name === 'claude') unmergeClaudeConfig(home, manifest);
+ if (!opt.dryRun) installCredentialCli();
 
-  if (!opt.dryRun) writeManifest(manifestPath, manifest);
+  if (previous) {
+ const current = new Set(manifest.files.map((item) => item.path));
+ for (const item of previous.files) {
+ if (current.has(item.path)) continue;
+ const abs = assertContained(home, path.join(home, item.path), { existing: true });
+ const now = sha256(abs);
+ if (!now) continue;
+ if (item.owned === true && now === item.sha256) {
+ if (!opt.dryRun) { backup(abs); fs.unlinkSync(abs); }
+ log(' - 清理升级遗留文件：' + item.path);
+ } else {
+ log(' = 保留未知或已修改的遗留文件：' + item.path);
+ manifest.files.push(item);
+ }
+ }
+ }
+ if (!opt.dryRun) writeManifest(manifestPath, manifest);
     log('  完成。文件清单写入 ' + path.relative(home, manifestPath) + '（共 ' + manifest.files.length + ' 个文件）');
     if (previous) log('  检测到旧安装（' + previous.version + '，' + previous.installedAt + '），已按新版本覆盖并备份旧文件。');
   } catch (e) {
@@ -703,7 +823,7 @@ function uninstallProfile(name) {
     return;
   }
   validateManifest(manifest, home);
-  if (typeof manifest.home !== 'string' || path.resolve(manifest.home) !== path.resolve(home)) throw new Error('安装清单 home 不匹配，拒绝卸载');
+  if (typeof manifest.home !== 'string' || !sameFsPath(manifest.home, home)) throw new Error('安装清单 home 不匹配，拒绝卸载');
   if (manifest.tool !== name) throw new Error('安装清单工具不匹配，拒绝卸载');
 
   const configPath = manifest.tool === 'zcode' ? path.join(home, 'cli', 'config.json')
@@ -720,6 +840,9 @@ function uninstallProfile(name) {
     if (now !== item.sha256) {
       kept += 1;
       log('  = 保留（安装后被修改）：' + item.path);
+    } else if (item.owned !== true) {
+      kept += 1;
+      log('  = 保留（安装前已存在）：' + item.path);
     } else removable.push(abs);
   }
 
@@ -757,12 +880,15 @@ function main() {
     if (!tools.length) tools = ['generic'];
   }
   if (!tools.length) {
-    log('用法：node install.js --tool <' + Object.keys(PROFILES).join('|') + '> [--all] [--dry-run] [--uninstall] [--home <dir>]');
+    log('用法：node install.js --tool <' + Object.keys(PROFILES).join('|') + '> [--all] [--profile full|dev] [--dry-run] [--uninstall] [--home <dir>]');
     log('详情见 README.md / docs/PORTABILITY.md');
     return;
   }
-  for (const t of tools) {
-    if (opt.uninstall) uninstallProfile(t);
+ if (opt.home && new Set(tools).size >1) {
+ throw new Error('多个宿主不能共享同一个 --home');
+ }
+ for (const t of tools) {
+ if (opt.uninstall) uninstallProfile(t);
     else installProfile(t);
   }
 }

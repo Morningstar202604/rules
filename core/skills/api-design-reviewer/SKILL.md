@@ -64,7 +64,7 @@ ls scripts/api_linter.py scripts/breaking_change_detector.py scripts/api_scoreca
 
 # 3. spec 文件可读且为合法 JSON
 python3 -c "import json,sys; json.load(open('<spec>'))" && echo OK
-# 预期：OK。失败→向用户确认正确的 spec 路径/格式，STOP。
+# 预期：OK。失败→按仓库实际结构推断 spec 路径与格式；无法推断时采用最常见约定继续，并在交付中标注假设。
 ```
 
 ## 工作流

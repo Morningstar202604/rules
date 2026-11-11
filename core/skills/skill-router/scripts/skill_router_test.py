@@ -84,7 +84,7 @@ class CliSmokeTest(unittest.TestCase):
                     "每天凌晨用 crontab 自动备份数据库目录并生成计划任务",
                     "--skills-dir", td, "--json", "--min-use", "4.0", "--min-weak", "3.0",
                 ],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True, text=True, encoding="utf-8", timeout=60,
                 env={**os.environ, "ZCODE_SKILL_ROUTER_NO_CACHE": "1"},
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)

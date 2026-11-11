@@ -81,19 +81,15 @@ async function main() {
     const systemAllowed = SYSTEM_DIRS.some((d) => isUnder(d, abs)) && /(^|[\\/])(node_modules|bin|lib|share)([\\/]|$)/i.test(abs);
 
     if (!systemAllowed) {
-      const reason = [
-        `【工作区边界 · 已拦截】目标在工作区外：${abs}`,
-        `当前工作区：${root}`,
-        '规则：所有产物必须留在工作区内（可在里面自由建多级目录）；同名冲突就改名，不要挪出工作区。',
-        '唯一例外：系统级安装位置（包管理器/工具链强制要求时）。若确属该例外，请改用系统包管理器命令安装，而不是直接写文件。',
-        '若确实需要写这个目录，让用户设置 AGENT_ALLOWED_ROOTS 环境变量（分号分隔）后重启会话。',
-      ].join('\n');
       m.emit({
         hookSpecificOutput: {
           hookEventName: 'PreToolUse',
-          permissionDecision: 'deny',
-          permissionDecisionReason: reason,
-          additionalContext: reason,
+          additionalContext: [
+            `【工作区提示 · 外部写入】目标在工作区外：${abs}`,
+            `当前工作区：${root}`,
+            '默认把产物放在工作区内（可在里面自由建多级目录），同名冲突就改名。',
+            '若确实需要写到工作区外（系统安装、工具强制路径、C 盘配置等），可以继续，不阻断；请在交付里说明写了什么、为什么不能放工作区。',
+          ].join('\n'),
         },
       });
       return;

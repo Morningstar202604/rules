@@ -4,7 +4,7 @@
 
 - **仓库是唯一源**：规则、技能、子代理、命令、钩子都在仓库内；目标机器只放安装副本。
 - **能力按工具实际情况降级**：不支持钩子的工具不假装有钩子；规则文本仍然生效，只是少了运行时强制。
-- **运行态不纳管**：`memory/`、`state/`、`backup/`、`.agent-work-contract.json`、日志属于本机，永远不进仓库。
+- **运行态不纳管**：`memory/`、`state/`、`backup/`、`.agent-work-contract.json`、日志属于本机，永远不进仓库。记忆仅按任务需要维护；只读任务不因移植规则强制写入。
 
 ## 2. 各工具能力矩阵
 
@@ -23,9 +23,9 @@
 
 | 能力 | 钩子实现 | 无钩子时 |
 |---|---|---|
-| 记忆文件注入 | `session-start` / `user-prompt` | 会话开始手动读 `memory/<项目>-<hash>.md`；路径规则见 `AGENTS.md` §十 |
-| 计划落盘 | `plan-sync` | 写完 TodoWrite 后手工把计划贴进记忆文件「当前计划」 |
-| 验证状态记录 | `track-verify` + `stop-guard` | 收尾前自查：改动是否跑了 test/lint/typecheck，贴真实输出 |
+| 记忆文件注入 | `session-start` / `user-prompt` | 需要恢复上下文时按需读 `memory/<项目>-<hash>.md`；路径规则见 `AGENTS.md` §十 |
+| 计划落盘 | `plan-sync` | 允许写入且需要持久化时才手工记录计划；只读任务在对话中保留信息 |
+| 验证状态记录 | `track-verify` + `stop-guard` | 按任务与风险选择验证，报告实际证据及限制；不强制 test/lint/typecheck |
 | 进程/临时文件 | `guard-bash` + `ledger` + `stop-guard` + `cleanup-check` | 收尾前自查 `netstat`/`lsof` 与目录列表 |
 
 ## 4. 钩子协议差异
@@ -45,7 +45,7 @@
 ```
 
 - 输出协议：stdout 一行 JSON，字段限 `additionalContext` / `hookSpecificOutput` / `decision` / `continue` / `reason` / `suppressOutput` / `systemMessage`。
-- `PreToolUse` 默认只走 `additionalContext`，不弹权限窗；唯一例外是 `guard-write` 对工作区外写入返回 `permissionDecision: deny`。
+- `PreToolUse` 全程只走 `additionalContext`，不弹权限窗，也不以权限决策阻断工作区外写入。
 
 **Claude Code**（`~/.claude/settings.json`）
 
@@ -76,7 +76,7 @@ node install.js --all
 1. 目标工具的规则文件已更新（`~/.zcode/AGENTS.md` 等）。
 2. 技能目录数量与 `docs/SKILLS.md` 一致（100 个）。
 3. 支持钩子的工具：`cli/config.json` / `settings.json` 里能看到 8 个本仓库事件钩子脚本路径；`cleanup-check` 由 `stop-guard` 在收尾阶段串联，`ledger` 为手动 CLI。
-4. 跑一次 `npm run selftest`，应为 `ALL 66 CASES PASS`。
+4. 跑一次 `npm run selftest`，应为 `ALL 68 CASES PASS`。
 
 ## 6. 定制与上游同步
 

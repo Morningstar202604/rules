@@ -174,7 +174,7 @@ You MUST complete each phase before proceeding to the next.
 4. **When You Don't Know**
    - Say "I don't understand X"
    - Don't pretend to know
-   - Ask for help
+   - gather more evidence or state the unresolved limitation
    - Research more
 
 ### Phase 4: Implementation
@@ -219,7 +219,7 @@ You MUST complete each phase before proceeding to the next.
    - Are we "sticking with it through sheer inertia"?
    - Should we refactor architecture vs. continue fixing symptoms?
 
-   **Discuss with your human partner before attempting more fixes**
+   **choose whether to simplify, refactor, or stop based on blast radius, coupling, and project scale; document the architectural judgment**
 
    This is NOT a failed hypothesis - this is a wrong architecture.
 

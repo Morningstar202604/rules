@@ -2,20 +2,22 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const REPO = path.join(__dirname, '..');
 const TOKEN = 'synthetic-token-for-security-test';
-const TMP = path.join(REPO, '.tmp', 'security-selftest');
+const TMP = fs.mkdtempSync(path.join(REPO, 'security-selftest-'));
 
 function run(command, args, env = {}) {
-  return spawnSync(command, args, {
-    cwd: REPO,
-    encoding: 'utf8',
-    env: { ...process.env, ...env },
-  });
+ const result = spawnSync(command, args, {
+ cwd: REPO,
+ encoding: 'utf8',
+ timeout:30000,
+ env: { ...process.env, ...env },
+ });
+ if (result.error && result.error.code !== 'ENOENT') throw result.error;
+ return result;
 }
 
 function pythonCommand() {
@@ -42,8 +44,6 @@ function bashPath(file) {
   return file.split(path.sep).join('/');
 }
 
-fs.rmSync(TMP, { recursive: true, force: true });
-fs.mkdirSync(TMP, { recursive: true });
 try {
   const vault = path.join(TMP, 'vault');
   fs.mkdirSync(vault, { recursive: true });
@@ -88,21 +88,32 @@ try {
     fs.copyFileSync(path.join(REPO, 'scripts', file), path.join(uploadRepo, 'scripts', file));
   }
   fs.writeFileSync(path.join(uploadRepo, 'README.md'), 'isolated\n');
-  let git = run('git', ['init', '-q', uploadRepo]);
-  assert.equal(git.status, 0, '隔离 Git 仓库初始化失败');
-  git = run('git', ['-C', uploadRepo, 'add', '.']);
-  assert.equal(git.status, 0, '隔离 Git 仓库暂存失败');
-  git = run('git', ['-C', uploadRepo, '-c', 'user.name=security-selftest', '-c', 'user.email=security-selftest@example.invalid', 'commit', '-qm', 'fixture']);
-  assert.equal(git.status, 0, '隔离 Git 仓库提交失败');
-
-  const fakeBin = path.join(TMP, 'fake-bin');
-  fs.mkdirSync(fakeBin, { recursive: true });
-  const realGit = run('bash', ['-lc', 'command -v git']);
-  assert.equal(realGit.status, 0, '找不到真实 git');
-  const fakeGit = path.join(fakeBin, 'git');
-  fs.writeFileSync(fakeGit, `#!/usr/bin/env bash\nset -euo pipefail\nis_push=0\nurl=''\nfor arg in "$@"; do\n  [ "$arg" = push ] && is_push=1\n  if [ "$is_push" = 1 ] && [[ "$arg" == https://* ]]; then url="$arg"; break; fi\ndone\nif [ "$is_push" = 1 ]; then\n  if [[ "$url" =~ ^https://[^/@:]+:[^/@]*@ ]]; then exit 41; fi\n  askpass="$GIT_ASKPASS"\n  if [[ "$askpass" =~ ^[A-Za-z]:\\\\ ]]; then askpass="$(cygpath -u "$askpass")"; fi\n  password="$("$askpass" "Password for $url")"\n  [ "$password" = "$EXPECTED_TOKEN" ] || exit 42\n  exit 0\nfi\nexec "$REAL_GIT" "$@"\n`);
-  fs.chmodSync(fakeGit, 0o755);
-  const accountData = { version: 1, platforms: {
+  // Source the uploader with a readonly function, never a real git executable.
+ const guard = path.join(TMP, 'git-guard.sh');
+ const gitLog = path.join(TMP, 'git-calls.log');
+ fs.writeFileSync(guard, `git() {
+ if [ "$#" -eq 4 ] && [ "$1" = -C ] && [ "$3" = rev-parse ] && [ "$4" = --is-inside-work-tree ]; then
+ printf 'probe\n' >> "$FAKE_GIT_LOG"; printf 'true\n'; return 0
+ fi
+ if [ "$#" -eq 5 ] && [ "$1" = -C ] && [ "$3" = status ] && [ "$4" = --porcelain ] && [ "$5" = --untracked-files=all ]; then
+ printf 'status\n' >> "$FAKE_GIT_LOG"; return 0
+ fi
+ if [ "$#" -eq 7 ] && [ "$1" = -c ] && [ "$2" = credential.helper= ] && [ "$3" = -C ] && [ "$5" = push ]; then
+ local url="$6" askpass="$GIT_ASKPASS" password
+ [[ "$url" == https://* ]] || return 40
+ [[ "$url" =~ ^https://[^/@:]+:[^/@]*@ ]] && return 41
+ if command -v cygpath >/dev/null 2>&1; then askpass="$(cygpath -u "$askpass")"; fi
+ password="$("$askpass" "Password for $url")" || return 42
+ [ "$password" = "$EXPECTED_TOKEN" ] || return 42
+ printf 'push %s\n' "$url" >> "$FAKE_GIT_LOG"
+ return 0
+ fi
+ printf 'unexpected\n' >> "$FAKE_GIT_LOG"
+ return 99
+}
+readonly -f git
+`);
+ const accountData = { version: 1, platforms: {
     gitcode: { accounts: { badhope: { token: TOKEN } } },
     gitee: { accounts: { badhope: { token: TOKEN } } },
     github: { accounts: {
@@ -112,16 +123,34 @@ try {
   fs.writeFileSync(path.join(vault, 'accounts.json'), JSON.stringify(accountData) + '\n');
   const repoForBash = bashPath(uploadRepo);
   const uploadScript = `${repoForBash}/scripts/upload_all.sh`;
-  const upload = run('bash', [uploadScript, repoForBash], {
-    AGENT_SECRETS_DIR: vault,
-    UPLOAD_SLEEP: '0',
-    EXPECTED_TOKEN: TOKEN,
-    REAL_GIT: realGit.stdout.trim(),
-    PATH: `${fakeBin}${path.delimiter}${process.env.PATH}`,
-  });
-  assert.equal(upload.status, 0, `隔离上传失败：${upload.stderr}`);
+  const guardTest = run('bash', ['--noprofile', '--norc', '-c',
+ 'source "$1"; [[ $(type -t git) = function ]] || exit 98; (unset -f git)2>/dev/null && exit 97; git unexpected; [[ $? = 99 ]]',
+ 'security-selftest', bashPath(guard)], { FAKE_GIT_LOG: bashPath(gitLog), BASH_ENV: '' });
+ assert.equal(guardTest.status,0, 'Git 拦截器必须只读且拒绝未知命令');
+ assert.equal(fs.readFileSync(gitLog, 'utf8').trim(), 'unexpected');
+ fs.unlinkSync(gitLog);
+ const upload = run('bash', ['--noprofile', '--norc', '-c',
+ 'source "$1"; [[ $(type -t git) = function ]] || exit 98; source "$2" "$3"',
+ 'security-selftest', bashPath(guard), uploadScript, repoForBash], {
+ AGENT_SECRETS_DIR: vault,
+ UPLOAD_SLEEP: '0',
+ EXPECTED_TOKEN: TOKEN,
+ FAKE_GIT_LOG: bashPath(gitLog),
+ BASH_ENV: '',
+ });
+ assert.equal(upload.status, 0, `隔离上传失败：${upload.stderr}`);
   assertNoToken(upload, '上传输出泄露测试 token');
   assert.match(upload.stdout, /五平台上传完成/);
+ const calls = fs.readFileSync(gitLog, 'utf8').trim().split(/\r?\n/);
+ assert.deepEqual(calls.slice(0,2), ['probe', 'status']);
+ assert.equal(calls.length,7, '必须恰好经过五次 fake git push');
+ assert.deepEqual(new Set(calls.slice(2)), new Set([
+ 'push https://badhope@gitcode.com/badhope/rules.git',
+ 'push https://badhope@gitee.com/badhope/rules.git',
+ 'push https://X33834@github.com/X33834/rules.git',
+ 'push https://Morningstar202604@github.com/Morningstar202604/rules.git',
+ 'push https://badhope@github.com/badhope/rules.git',
+ ]));
 
   process.stdout.write('security selftest: PASS\n');
 } finally {

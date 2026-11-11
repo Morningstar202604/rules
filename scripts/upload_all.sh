@@ -52,18 +52,13 @@ while IFS=$'\t' read -r platform owner url; do
       rc=0
     else
       rc=$?
-      # GitHub 的 git 协议常被重置；失败后回退到 REST API（复用 blob、保持 commit SHA 一致）。
-      if [ "$platform" = "github" ] && [ -f "$REPO_DIR/scripts/gh-api-push.js" ]; then
-        echo "  .. git push 失败，回退 GitHub REST API"
-        if out=$(node "$REPO_DIR/scripts/gh-api-push.js" "$owner" --branch "$BRANCH" 2>&1); then rc=0; else rc=$?; fi
-      fi
     fi
     printf '%s\n' "$out" | sed -E 's#https://[^@]*@#https://***@#g'
     if [ "$rc" -eq 0 ]; then
       ok=1
       break
     fi
-    echo "!! 第 $attempt 次推送失败：$platform/$owner（exit=$rc），退避后重试" >&2
+    echo "!! 第 $attempt 次推送失败：$platform/$owner（exit=$rc）；不会自动调用 GitHub API，退避后重试" >&2
     sleep $((attempt * 20))
   done
   [ "$ok" = 1 ] || { echo "!! push 失败：$platform/$owner" >&2; FAILED=$((FAILED+1)); }

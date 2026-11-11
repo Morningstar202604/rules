@@ -137,6 +137,6 @@ python3 scripts/project_architect.py examples/sample-project --verbose
 
 ## References
 
-- `references/architecture_patterns.md` — trade-offs and examples for 9 architecture patterns; read when the user asks "which pattern?", "microservices vs monolith", "CQRS", "event-driven".
-- `references/system_design_workflows.md` — 6 step-by-step system-design workflows; read when the user asks "how to design?", capacity planning, API design, or migration.
-- `references/tech_decision_guide.md` — the tech-selection decision matrix; read when the user asks "which database/framework/cloud/cache?".
+- `references/architecture_patterns.md` — trade-offs and examples for 9 architecture patterns; read when the task actually requires it "which pattern?", "microservices vs monolith", "CQRS", "event-driven".
+- `references/system_design_workflows.md` — 6 step-by-step system-design workflows; read when the task actually requires it "how to design?", capacity planning, API design, or migration.
+- `references/tech_decision_guide.md` — the tech-selection decision matrix; read when the task actually requires it "which database/framework/cloud/cache?".

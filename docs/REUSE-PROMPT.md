@@ -5,14 +5,14 @@
 ## 标准版（推荐）
 
 ```text
-把 agent-work-contract 这套规则安装到本机并启用。
+把 rules 这套规则安装到本机并启用。
 
-1. 若尚未克隆：git clone https://gitcode.com/badhope/rules.git ~/agent-work-contract
-   已有则：cd ~/agent-work-contract && git pull --ff-only
+1. 若尚未克隆：git clone https://gitcode.com/badhope/rules.git ~/rules
+   已有则：cd ~/rules && git pull --ff-only
 2. 检测本机已安装的编程智能体，执行：node install.js --all
    （只想要某一个：node install.js --tool zcode|claude|opencode|codex|generic）
 3. 验证：
-   - node <repo>/core/hooks/selftest.js 输出 "ALL 63 CASES PASS"
+   - node <repo>/core/hooks/selftest.js 输出 "ALL 68 CASES PASS"
    - 目标工具的规则文件已更新（如 ~/.zcode/AGENTS.md、~/.claude/CLAUDE.md）
    - 支持钩子的工具里，配置文件能看到本仓库 hooks 路径
 4. 报告：装了哪些工具、各写了多少文件、哪些走降级（无钩子）、有没有失败项。
@@ -53,7 +53,7 @@ node .agent-rules/install.js --tool generic --home ./.agent-rules-installed
 ## 升级
 
 ```text
-cd ~/agent-work-contract && git pull --ff-only && node install.js --all
+cd ~/rules && git pull --ff-only && node install.js --all
 ```
 
 幂等覆盖；被本地改过的文件会先备份到 `<安装目录>/.agent-work-contract-backup/<时间戳>/`。

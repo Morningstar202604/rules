@@ -17,6 +17,7 @@ const RUN = fs.mkdtempSync(path.join(ROOT, 'run-'));
 
 const ISOLATED_MEMORY = path.join(ROOT, 'memory');
 fs.mkdirSync(ISOLATED_MEMORY, { recursive: true });
+process.env.AGENT_RULES_MEMORY_DIR = ISOLATED_MEMORY;
 process.env.ZCODE_MEMORY_DIR = ISOLATED_MEMORY;
 
 const m = require('./lib/memory.js');
@@ -44,12 +45,16 @@ function prepState(cwd, patch) {
   m.writeState(cwd, patch);
 }
 
-function run(script, payload, extraEnv) {
-  const out = execFileSync(NODE, [path.join(H, script)], {
-    input: JSON.stringify(payload), encoding: 'utf8',
-    env: { ...process.env, ZCODE_MEMORY_DIR: ISOLATED_MEMORY, ...(extraEnv || {}) },
-  }).trim();
-  return out;
+function run(script, payload, extraEnv, args = []) {
+ const env = { ...process.env, ZCODE_MEMORY_DIR: ISOLATED_MEMORY, ...(extraEnv || {}) };
+ if (!extraEnv || !Object.prototype.hasOwnProperty.call(extraEnv, 'AGENT_ALLOWED_ROOTS')) {
+ delete env.AGENT_ALLOWED_ROOTS;
+ }
+ const out = execFileSync(NODE, [path.join(H, script), ...args.map((arg) => path.join(H, arg))], {
+ input: JSON.stringify(payload), encoding: 'utf8',
+ env,
+ }).trim();
+ return out;
 }
 
 function parseOut(out) {
@@ -168,13 +173,31 @@ const CASES = [
     setup: (cwd) => { fs.mkdirSync(path.join(cwd, 'src'), { recursive: true }); },
     payload: (cwd) => ({ tool_name: 'Write', cwd, tool_input: { file_path: path.join(cwd, 'src', 'a.ts') } }),
     expect: (o) => o === null },
-  { name: 'guard-write: 工作区外写入提示边界', script: 'guard-write.js',
+  { name: 'guard-write: 工作区外写入仅提示不阻断', script: 'guard-write.js',
     payload: (cwd) => ({ tool_name: 'Write', cwd, tool_input: { file_path: path.join(os.tmpdir(), 'outside-boundary-probe.ts') } }),
-    expect: (o) => o?.hookSpecificOutput?.additionalContext?.includes('工作区边界') },
-  { name: 'guard-write: 工作区外写入直接 deny', script: 'guard-write.js',
-    payload: (cwd) => ({ tool_name: 'Write', cwd, tool_input: { file_path: path.join(os.tmpdir(), 'outside-deny-probe.ts') } }),
-    expect: (o) => o?.hookSpecificOutput?.permissionDecision === 'deny' },
-  { name: 'guard-write: AGENT_ALLOWED_ROOTS 白名单放行', script: 'guard-write.js',
+    expect: (o) => o?.hookSpecificOutput?.additionalContext?.includes('工作区外') && o?.hookSpecificOutput?.permissionDecision === undefined },
+ { name: 'claude-wrap: 工作区外写入提示不产生权限决策', script: 'lib/claude-wrap.js', args: ['guard-write.js'],
+ payload: (cwd) => ({ hook_event_name: 'PreToolUse', tool_name: 'Write', cwd, tool_input: { file_path: path.join(os.tmpdir(), 'outside-boundary-probe.ts') } }),
+ expect: (o) => !o?.hookSpecificOutput?.permissionDecision && o?.systemMessage?.includes('工作区外') },
+ { name: 'claude-wrap: 普通提示不产生权限决策', script: 'lib/claude-wrap.js', args: ['guard-bash.js'],
+ payload: (cwd) => ({ hook_event_name: 'PreToolUse', tool_name: 'Bash', cwd, tool_input: { command: 'git add -A' } }),
+ expect: (o) => !o?.hookSpecificOutput?.permissionDecision && !!o?.systemMessage },
+  { name: 'guard-write:继承白名单不污染自测，显式白名单仍生效', script: 'guard-write.js',
+ payload: (cwd) => ({ tool_name: 'Write', cwd, tool_input: { file_path: path.join(os.tmpdir(), 'isolation-probe.ts') } }),
+ expect: (o, cwd) => {
+ const previous = process.env.AGENT_ALLOWED_ROOTS;
+ const payload = { tool_name: 'Write', cwd, tool_input: { file_path: path.join(os.tmpdir(), 'isolation-probe.ts') } };
+ try {
+ process.env.AGENT_ALLOWED_ROOTS = os.tmpdir();
+ const inherited = parseOut(run('guard-write.js', payload));
+ const allowed = parseOut(run('guard-write.js', payload, { AGENT_ALLOWED_ROOTS: os.tmpdir() }));
+ return inherited?.hookSpecificOutput?.additionalContext?.includes('工作区外') && inherited?.hookSpecificOutput?.permissionDecision === undefined && allowed === null;
+ } finally {
+ if (previous === undefined) delete process.env.AGENT_ALLOWED_ROOTS;
+ else process.env.AGENT_ALLOWED_ROOTS = previous;
+ }
+ } },
+ { name: 'guard-write: AGENT_ALLOWED_ROOTS 白名单放行', script: 'guard-write.js',
     payload: (cwd) => ({ tool_name: 'Write', cwd, tool_input: { file_path: path.join(os.tmpdir(), 'allowed-root-probe.ts') } }),
     env: { AGENT_ALLOWED_ROOTS: os.tmpdir() },
     expect: (o) => o === null },
@@ -362,7 +385,7 @@ for (const c of CASES) {
     let last = null;
     let outputs = [];
     for (let i = 0; i < runs; i += 1) {
-      const out = run(c.script, payload, c.env);
+      const out = run(c.script, payload, c.env, c.args);
       last = out;
       outputs.push(out);
     }

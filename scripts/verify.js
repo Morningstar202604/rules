@@ -82,13 +82,13 @@ check('8 个事件钩子 + cleanup-check + ledger CLI + lib 8 个', () => {
   return '8 event hooks + cleanup-check + ledger + 8 lib';
 });
 
-check('钩子自检 66/66', () => {
+check('钩子自检 68/68', () => {
   const out = execFileSync(process.execPath, [path.join(REPO, 'core', 'hooks', 'selftest.js')], {
     encoding: 'utf8',
     cwd: REPO,
   });
-  if (!/ALL 66 CASES PASS/.test(out)) throw new Error(out.split('\n').slice(-3).join(' '));
-  return 'ALL 66 CASES PASS';
+  if (!/ALL 68 CASES PASS/.test(out)) throw new Error(out.split('\n').slice(-3).join(' '));
+  return 'ALL 68 CASES PASS';
 });
 
 const SECRET_PATTERNS = [

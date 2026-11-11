@@ -1,6 +1,6 @@
 ---
 name: aqg-code-construction
-description: Invoke this before writing, modifying, refactoring, or implementing code in any repository — the entry point for a coding task, not a review after one.
+description: Use for coding tasks when AQG construction gates are applicable or explicitly requested; adapt the workflow to the repository and task.
 
 ---
 

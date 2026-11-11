@@ -1,6 +1,6 @@
-# agent-work-contract
+# rules
 
-一套可移植的 AI 工作契约：**规则 + 技能 + 子代理 + 命令 + 运行时钩子**，一条命令装进任意编程智能体（ZCode / Claude Code / opencode / Codex / 通用目录），装完即用。
+rules 是一套可移植的 AI 工作契约：**规则 + 技能 + 子代理 + 命令 + 运行时钩子**，一条命令装进任意编程智能体（ZCode / Claude Code / opencode / Codex / 通用目录），装完即用。
 
 不是提示词合集，而是带工程纪律的规范集合：规则、技能、子代理与钩子协同工作；钩子只做状态提示与台账记录，不阻断收尾、不弹权限窗。
 
@@ -19,12 +19,13 @@ node install.js --tool claude         # 或只装某一个
 |---|---|
 | `node install.js --tool <zcode\|claude\|opencode\|codex\|generic>` | 安装到指定工具 |
 | `node install.js --all` | 安装到所有已检测到的工具 |
+| `node install.js --tool zcode --profile dev` | 只装编程开发相关技能与子代理（约 60 技能 / 35 代理）；默认 `full` 装全量 |
 | `node install.js --tool zcode --dry-run` | 只打印计划，不落盘 |
 | `node install.js --tool zcode --home D:/rules` | 装到自定义目录（含 portable 场景） |
 | `node install.js --tool zcode --no-hooks` | 只装规则/技能/子代理/命令，不装钩子 |
 | `node install.js --tool zcode --uninstall` | 卸载；**安装后被改动过的文件一律保留** |
-| `npm test` | 跑钩子自检与凭据安全回归（66 个钩子用例 + 安全自检） |
-| `npm run selftest` | 只跑钩子自检（66 个用例） |
+| `npm test` | 跑钩子自检与凭据安全回归（68 个钩子用例 + 安全自检） |
+| `npm run selftest` | 只跑钩子自检（68 个用例） |
 | `npm run verify` | 跑仓库数量、文档、安装器、包内容与凭据安全门禁 |
 
 ## 装了什么
@@ -47,7 +48,7 @@ THIRD_PARTY_NOTICES.md 上游技能与子代理的许可声明
 |---|---|---|
 | `session-start` | 会话开始 | 注入工作区记忆文件路径与标题索引 |
 | `user-prompt` | 每轮输入 | 注入记忆定位与可选路由参考；识别"停"类短语静默放行 |
-| `guard-write` | 写文件前 | 敏感文件（.env / 密钥 / 凭据）提示；**工作区外写入直接拦截**（系统安装位置除外）；登记改动待验证 |
+| `guard-write` | 写文件前 | 敏感文件（.env / 密钥 / 凭据）提示；工作区外写入仅提示、不阻断；登记改动待验证 |
 | `guard-bash` | 执行命令前 | 13 条危险命令（rm -rf、DROP、force push 之外的不可逆操作等）提示；密钥类 git 操作提示；长驻服务登记到台账 |
 | `plan-sync` | TodoWrite 后 | 把计划写进记忆文件的「当前计划」区块 |
 | `track-verify` | Bash 执行后 | 识别测试/lint/类型检查命令并记录结果 |
@@ -55,7 +56,7 @@ THIRD_PARTY_NOTICES.md 上游技能与子代理的许可声明
 | `cleanup-check` | 项目收尾串联 | 只在 `phase closing` 时检查临时文件、待同步文档、本轮改动清单，仅提示 |
 | `ledger` | 手动 CLI | 台账查询与变更：`status` / `phase` / `add-proc` / `rm-proc` / `add-file` / `artifact` |
 
-所有钩子默认只注入提示或记录台账，**不修改用户命令、不阻断收尾、不弹权限窗、不杀进程**；唯一例外是 `guard-write` 对工作区外写入返回 `permissionDecision: deny`。详见 `docs/HOOKS.md`。
+所有钩子默认只注入提示或记录台账，**不修改用户命令、不阻断写入、不阻断收尾、不弹权限窗、不杀进程**。详见 `docs/HOOKS.md`。
 
 ## 项目阶段与台账
 
@@ -80,7 +81,7 @@ node <规则目录>/hooks/ledger.js phase done
 | `hooks.maxOutputBytes` | 65536 | 台账与收尾报告可能较长 |
 | `hooks.timeoutMs` | 30000 | 收尾检查含端口探测 |
 
-同名技能（docx / pdf / pptx / xlsx / skill-creator / visualize / plugin-creator）默认跳过安装：官方插件版功能更全，用户级同名技能会把它遮蔽。
+同名技能（docx / pdf / pptx / xlsx / skill-creator / visualize / plugin-creator）不因“官方”字样默认跳过：安装器当前会随仓库安装 bundled 技能；只有确认目标工具已启用且可发现、可调用的官方插件/技能时，才应按工具实际覆盖策略选择跳过或保留。缓存目录、市场清单或同名目录都不算已启用证明。详见 [`docs/PLUGINS.md`](docs/PLUGINS.md)。
 
 ## 各工具落点
 
@@ -108,8 +109,8 @@ node <规则目录>/hooks/ledger.js phase done
 
 | 技能 | 用途 |
 |---|---|
-| `master-checklist` | 开工前必读：铁律 + 能力最大化 + 分类清单 + 三清单交付 |
-| `agent-work-contract` | 本套规则的复用与安装：多工具、幂等、验证、卸载 |
+| `master-checklist` | 按需参考的工程与交付自查清单，验证深度按任务与风险决定 |
+| `rules` | 本套规则的复用与安装（内部技能 ID 仍为 `agent-work-contract`）：多工具、幂等、验证、卸载 |
 | `skill-router` | 任务→技能路由，离线确定性打分 |
 | `verification-before-completion` | 声称完成前必须出示证据 |
 | `aqg-*` | AQG 工程纪律：施工六步、审计裁决、安全评审、测试质量、会话交接等 11 个 |

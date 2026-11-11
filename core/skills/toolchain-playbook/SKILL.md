@@ -8,20 +8,27 @@ metadata:
 
 # 本机工具链速查
 
-> 环境事实以实际探测为准；下表是 2026-10 在本机核对过的结果。新增工具先 `command -v` 确认再写进文档。
+> 以下工具仅为候选；环境事实以当前宿主实际探测为准。原参考清单是 2026-10 在本机核对过的结果。新增工具先 `command -v` 确认再写进文档。
+
+## 使用前先识别宿主
+
+1.先识别操作系统、当前 shell、命令解析器和工具来源；Windows 可用 `ver`、`where <工具>`、`Get-Command <工具>`，类 Unix 可用 `uname`、`command -v <工具>`。不要仅凭扩展名、环境变量或历史经验判断 shell。
+2. Windows 不默认 PowerShell：优先调用下表中的专用工具及 Node 脚本 / Node 文件 API；只有专用工具缺失时才使用 `cmd` 或 PowerShell，并记录降级理由、编码和退出码假设。
+3. 工具清单是能力提示，不是安装事实；写入文档或执行前先在当前宿主解析实际路径。路径、版本、默认编码和行尾均以现场探测为准。
 
 ## 已确认可用
 
-| 类别 | 工具 | 备注 |
+| 类别 | 工具 |备注 |
 |---|---|---|
-| 搜索 | `rg`（ripgrep） | 随 ZCode 分发，优先用它替代 grep |
-| 文本处理 | `jq`、`yq` | 结构化数据改写 |
-| 版本控制 | `git`、`gh` | gh 已登录时可直接操作 PR/Issue |
-| 包管理 | `pnpm`、`npm` | 项目默认 pnpm |
-| 运行时 | `node`、`python`、`uv`、`cargo` | Python 用 uv 建虚拟环境 |
-| 构建 | `make`、`cmake`、`ninja`、`mvn`、`gradle`、`java`(21) | Java 在 `C:\Dev\jdk-21` |
-| 容器 | `docker` | `docker compose` 用子命令形式 |
-| 数据库 | `sqlite3` | 无本地 psql / redis-cli |
+| 搜索 | `rg`（ripgrep） | 随 ZCode 分发，优先用它替代 grep / findstr |
+| 文本处理 | `jq`、`yq` |结构化数据改写；机器读写 JSON 时显式 UTF-8 / ASCII 安全转义 |
+|版本控制 | `git`、`gh` | gh 已登录时可直接操作 PR/Issue；不要假设 credential helper 或登录状态 |
+| 包管理 | `pnpm`、`npm` | 项目默认 pnpm；先读 package.json/packageManager |
+|运行时 | `node`、`python`、`uv`、`cargo` | Python 按 `python3 → python → py`解析；优先使用 Node 跨平台脚本 |
+| 构建 | `make`、`cmake`、`ninja`、`mvn`、`gradle`、`java`(21) | 不假设 Unix shell；Java 路径须现场解析 |
+| 容器 | `docker` | `docker compose` 用子命令形式；先确认 Docker daemon 可用 |
+| 数据库 | `sqlite3` | 无本地 psql / redis-cli；缺失时不要静默跳过检查 |
+
 
 ## 未安装（不要假设存在）
 

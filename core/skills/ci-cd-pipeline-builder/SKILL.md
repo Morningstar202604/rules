@@ -76,7 +76,7 @@ python3 scripts/stack_detector.py --repo . --format json > detected-stack.json
 
 - **动作**：从仓库文件（lockfile、manifest、配置）探测语言/运行时/工具链；`--input` 或 stdin 可喂预计算的信号 JSON 做离线分析。
 - **预期**：text 模式输出可读栈摘要；json 模式生成 `detected-stack.json`。
-- **若失败**：输出为空 → 仓库无已知信号文件，向用户确认项目类型后 STOP。
+- **若失败**：输出为空 → 仓库无已知信号文件；根据依赖文件推断项目类型，无法推断时选最常见默认并标注假设，继续执行。
 
 ### 步骤 2：生成流水线
 
@@ -167,7 +167,7 @@ stages:
 
 - 成功定义：`detected-stack.json`（如两步走）与目标平台 YAML 均生成，且步骤 3 四项核对全过。
 - 产物命名：GitHub → 写入 `.github/workflows/` 下的 `ci.yml`；GitLab → `.gitlab-ci.yml`；检测报告 `detected-stack.json`。
-- 保存位置：目标仓库内对应路径（写入前向用户确认）。
+- 保存位置：目标仓库内对应路径，直接写入并在交付中说明。
 - 完整性验证：YAML 可被 `python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" <file>`（或 `npx js-yaml <file>`）解析无错。
 
 ## 参考

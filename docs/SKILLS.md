@@ -6,7 +6,7 @@
 |---|---|
 | `agent-designer` | 设计多智能体系统：选择编排模式、搭建工作流、生成工具 schema 并分析运行日志。 |
 | `agent-hierarchy` | 为仓库设计编排者-子代理层级：按独占写入面拆分代理，让产出者与独立校验者配对。 |
-| `agent-router` | 接到任务先判它属于哪个领域、该派给哪支战队，毫秒级出结果，不用人点名。 |
+| `agent-router` | 按需提供任务领域与子代理战队候选；是否委派由宿主能力、授权与任务需求决定。 |
 | `agent-work-contract` | 把本套规则、技能、子代理、命令与钩子复用到任意机器/任意编程智能体：安装、升级、验证、卸载。 |
 | `algorithmic-art` | Create generative art with p5.js: seeded randomness, flow fields, particle systems, interactive HT… |
 | `api-design-reviewer` | REST/GraphQL 接口契约设计评审专用。当 software-api-designer 产出 API spec、或 software-reviewer 在门禁阶段审查接口正确性/一致性/安… |
@@ -57,7 +57,7 @@
 | `intent-recognition` | 开工前把「他想要什么、这个项目是什么」问清楚：目标、定位、干系人、约束、验收。 |
 | `internal-comms` | Templates and guidance for internal communications: status reports, leadership updates, newsletter… |
 | `long-run-execution` | 让长任务跑一天也不丢目标：定期落检查点、中断后从断点续跑、收尾前对账。 |
-| `master-checklist` | 主理人工作契约 + 能力最大化指令 + 分类执行清单：开工先拉满、交付带三清单。 |
+| `master-checklist` | 按需取用的工程与交付自查清单，验证强度按任务和风险决定。 |
 | `mcp-builder` | Guide for building high-quality MCP (Model Context Protocol) servers connecting LLMs to external s… |
 | `observability-designer` | 设计可观测性体系：metrics/logs/traces、RED/USE 指标、仪表盘与告警、OpenTelemetry 接入、健康检查与关键路径埋点。触发：dashboard / alert f… |
 | `performance-profiler` | 对 Node.js、Python、Go 应用做系统性性能剖析：定位 CPU/内存/I/O 瓶颈、生成火焰图、分析包体积、优化数据库查询、用 k6 与 Artillery 跑压测。始终先测后改。何时… |
