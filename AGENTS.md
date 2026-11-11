@@ -220,6 +220,8 @@
 
 ## 十五之二、Git 推送（走 API / token，禁弹窗）
 
+> 完整上传规范见 `docs/UPLOAD.md`：token 直接认证，禁 GCM/浏览器弹窗；GitHub git 通道失败时用安全 API 快进（远端 HEAD 必须是本地祖先，不 force、不删除远端独有文件）。
+
 1. **统一走 token，不走 GCM**：本机系统级配置了 `credential.helper=manager`（GCM），它是弹窗的根源。所有需要访问远端的 git 操作（clone/fetch/pull/push）加 `-c credential.helper=` 关掉它，再用 `GIT_ASKPASS` + 凭据库取 token；本地 status/diff/log 不必加。仓库脚本 `scripts/upload_all.sh` 已按此实现。
 2. **正确的 API 形式**（实测）：
 

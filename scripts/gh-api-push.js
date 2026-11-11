@@ -1,5 +1,6 @@
-// 通过 GitHub REST API 推送当前工作树快照（绕过 git 协议，适用于 github.com:443 不通时）。
-// 用法：node scripts/gh-api-push.js <owner> [--branch main]
+// 通过 GitHub REST API 对当前分支做「安全快进」推送（绕过 github.com:443 的 git 协议）。
+// 约束：远端 HEAD 必须是本地 HEAD 的祖先；只新增/更新本地文件，绝不删除远端独有文件，绝不 force。
+// 用法：node scripts/gh-api-push.js <owner> [--repo rules] [--branch main] [--dry-run]
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -21,10 +22,13 @@ function parseArgs() {
   const owner = positional[0] || 'badhope';
   const branchIndex = args.indexOf('--branch');
   const branch = branchIndex >= 0 && args[branchIndex + 1] ? args[branchIndex + 1] : (positional[1] || 'main');
-  if (!/^[A-Za-z0-9._-]+$/.test(owner) || !/^[A-Za-z0-9._/-]+$/.test(branch) || branch.includes('..')) {
-    throw new Error('owner/branch 参数包含非法字符');
+  const repoIndex = args.indexOf('--repo');
+  const repoName = repoIndex >= 0 && args[repoIndex + 1] ? args[repoIndex + 1] : 'rules';
+  const dryRun = args.includes('--dry-run');
+  if (!/^[A-Za-z0-9._-]+$/.test(owner) || !/^[A-Za-z0-9._-]+$/.test(repoName) || !/^[A-Za-z0-9._/-]+$/.test(branch) || branch.includes('..')) {
+    throw new Error('owner/repo/branch 参数包含非法字符');
   }
-  return { owner, branch };
+  return { owner, repoName, branch, dryRun };
 }
 
 function secureVaultFile(file) {
@@ -126,13 +130,22 @@ async function createBlob(repo, file, token) {
 }
 
 (async () => {
-  const { owner, branch } = parseArgs();
+  const { owner, repoName, branch, dryRun } = parseArgs();
   const token = loadToken(owner);
-  const repo = `https://api.github.com/repos/${owner}/rules`;
+  const repo = `https://api.github.com/repos/${owner}/${repoName}`;
 
   const ref = await call('GET', `${repo}/git/ref/heads/${branch}`, null, token);
   if (ref.code !== 200 || !ref.body?.object?.sha) { console.error('ref read failed', ref.code); process.exit(1); }
   const parentSha = ref.body.object.sha;
+
+  // 安全闸门：远端提交必须存在于本地且是 HEAD 的祖先，否则拒绝用 API 覆盖。
+  try {
+    execFileSync('git', ['cat-file', '-e', `${parentSha}^{commit}`], { cwd: ROOT, stdio: 'ignore' });
+    execFileSync('git', ['merge-base', '--is-ancestor', parentSha, 'HEAD'], { cwd: ROOT, stdio: 'ignore' });
+  } catch {
+    console.error(`拒绝 API 推送：远端 HEAD ${parentSha.slice(0, 7)} 不在本地历史中；先 fetch 并确认快进，不能用 API 覆盖。`);
+    process.exit(2);
+  }
 
   const parentCommit = await call('GET', `${repo}/git/commits/${parentSha}`, null, token);
   if (parentCommit.code !== 200 || !parentCommit.body?.tree?.sha) { console.error('parent commit read failed', parentCommit.code); process.exit(1); }
@@ -142,8 +155,6 @@ async function createBlob(repo, file, token) {
   const files = [...entries.keys()];
   console.log('files:', files.length);
 
-  // 关键：Git Data API 的 tree 是「叠加」语义，删除文件必须显式传 sha:null，
-  // 否则远端会保留已删文件（这是运行态垃圾清理后仍残留的原因）。
   const remoteTree = await call('GET', `${repo}/git/trees/${baseTree}?recursive=1`, null, token);
   if (remoteTree.code !== 200) { console.error('tree read failed', remoteTree.code); process.exit(1); }
   const remoteEntries = new Map(
@@ -152,32 +163,38 @@ async function createBlob(repo, file, token) {
       .map((x) => [x.path, { sha: x.sha, mode: x.mode }])
   );
   const localPaths = new Set(files);
-  const deletions = [...remoteEntries.keys()].filter((p) => !localPaths.has(p));
-
-  const tree = [];
-  for (const p of deletions) {
-    tree.push({ path: p, mode: '100644', type: 'blob', sha: null });
+  const remoteOnly = [...remoteEntries.keys()].filter((p) => !localPaths.has(p));
+  if (remoteOnly.length) {
+    console.log(`保留远端独有文件 ${remoteOnly.length} 个（API 推送不删除任何远端文件）。`);
   }
-  if (deletions.length) console.log('deletions:', deletions.length);
 
   let reused = 0;
   let created = 0;
+  const tree = [];
   for (const f of files) {
     const abs = path.join(ROOT, f);
     if (!fs.existsSync(abs)) continue;
     const local = entries.get(f);
     const remote = remoteEntries.get(f);
-    let sha;
     if (remote && remote.sha === local.sha) {
-      sha = remote.sha;
       reused += 1;
-    } else {
-      sha = await createBlob(repo, f, token);
-      created += 1;
+      continue;
     }
-    tree.push({ path: f, mode: local.mode, type: 'blob', sha });
+    created += 1;
+    if (!dryRun) {
+      const sha = await createBlob(repo, f, token);
+      tree.push({ path: f, mode: local.mode, type: 'blob', sha });
+    }
   }
-  console.log(`blobs reused: ${reused}, created: ${created}`);
+  console.log(`changed blobs: ${created}, unchanged: ${reused}`);
+  if (dryRun) {
+    console.log('dry-run：未写入远端。');
+    return;
+  }
+  if (!tree.length) {
+    console.log('远端内容已一致，无需提交。');
+    return;
+  }
 
   // 分块提交 tree（避免单请求过大）
   let currentTree = baseTree;

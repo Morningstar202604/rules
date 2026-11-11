@@ -38,7 +38,7 @@ core/commands/         4 个斜杠命令（review / arch-review / security-scan 
 core/hooks/            8 个事件钩子 + cleanup-check 收尾辅助 + ledger 台账 CLI + 8 个共用模块 + Claude Code 输出适配器
 install.js             跨工具安装器
 templates/             凭据库、记忆文件的最小模板（不含任何真实凭据）
-docs/                  移植说明、分层模型、钩子协议、凭据接入、技能清单、插件清单、一键复用提示词
+docs/                  移植说明、分层模型、钩子协议、上传规范、凭据接入、技能清单、插件清单、一键复用提示词
 THIRD_PARTY_NOTICES.md 上游技能与子代理的许可声明
 ```
 

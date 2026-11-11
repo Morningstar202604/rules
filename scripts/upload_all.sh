@@ -2,6 +2,7 @@
 # 五平台默认上传（gitcode/badhope、gitee/badhope、github/x33834、github/Morningstar202604、github/badhope）。
 # 串行推送 + 平台间隔限速；token 由 Git askpass 从本机凭据库按需读取，不进 URL、argv 或日志。
 # 用法：scripts/upload_all.sh [仓库目录]；环境变量 UPLOAD_SLEEP（秒，默认 8）、UPLOAD_BRANCH（默认 main）
+# Git 通道失败时，GitHub 默认自动走 scripts/gh-api-push.js 的安全快进（只增改、不删除、不 force）；UPLOAD_API_FALLBACK=0 可关闭。
 set -euo pipefail
 
 REPO_DIR="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -59,7 +60,15 @@ while IFS=$'\t' read -r platform owner url; do
       ok=1
       break
     fi
-    echo "!! 第 $attempt 次推送失败：$platform/$owner（exit=$rc）；不会自动调用 GitHub API，退避后重试" >&2
+    echo "!! 第 $attempt 次推送失败：$platform/$owner（exit=$rc）；进入安全回退/退避重试" >&2
+    if [ "$platform" = github ] && [ "${UPLOAD_API_FALLBACK:-1}" = "1" ]; then
+      echo "!! 尝试 GitHub API 安全快进（仅增改、不删除、不 force）：$owner" >&2
+      if AGENT_SECRETS_DIR="$VAULT" node "$REPO_DIR/scripts/gh-api-push.js" "$owner" --repo rules --branch "$BRANCH"; then
+        ok=1
+        break
+      fi
+      echo "!! GitHub API 安全快进失败；继续退避重试 git" >&2
+    fi
     sleep $((attempt * BACKOFF))
   done
   [ "$ok" = 1 ] || { echo "!! push 失败：$platform/$owner" >&2; FAILED=$((FAILED+1)); }
