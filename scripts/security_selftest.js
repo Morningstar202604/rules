@@ -87,6 +87,9 @@ try {
   for (const file of ['upload_all.sh', 'git-askpass.sh', 'git-askpass.js']) {
     fs.copyFileSync(path.join(REPO, 'scripts', file), path.join(uploadRepo, 'scripts', file));
   }
+  // copyFileSync 不保留可执行位；Linux CI 上直接执行 askpass 会 EACCES。
+  fs.chmodSync(path.join(uploadRepo, 'scripts', 'git-askpass.sh'), 0o755);
+  fs.chmodSync(path.join(uploadRepo, 'scripts', 'git-askpass.js'), 0o755);
   fs.writeFileSync(path.join(uploadRepo, 'README.md'), 'isolated\n');
   // Source the uploader with a readonly function, never a real git executable.
  const guard = path.join(TMP, 'git-guard.sh');
@@ -134,6 +137,7 @@ readonly -f git
  'security-selftest', bashPath(guard), uploadScript, repoForBash], {
  AGENT_SECRETS_DIR: vault,
  UPLOAD_SLEEP: '0',
+ UPLOAD_BACKOFF: '0',
  EXPECTED_TOKEN: TOKEN,
  FAKE_GIT_LOG: bashPath(gitLog),
  BASH_ENV: '',

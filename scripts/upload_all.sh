@@ -11,6 +11,7 @@ if command -v cygpath >/dev/null 2>&1; then
   REPO_DIR="$(cygpath -w "$REPO_DIR")"
 fi
 SLEEP="${UPLOAD_SLEEP:-8}"
+BACKOFF="${UPLOAD_BACKOFF:-20}"
 BRANCH="${UPLOAD_BRANCH:-main}"
 ACCOUNTS="$VAULT/accounts.json"
 ASKPASS="$REPO_DIR/scripts/git-askpass.sh"
@@ -59,7 +60,7 @@ while IFS=$'\t' read -r platform owner url; do
       break
     fi
     echo "!! 第 $attempt 次推送失败：$platform/$owner（exit=$rc）；不会自动调用 GitHub API，退避后重试" >&2
-    sleep $((attempt * 20))
+    sleep $((attempt * BACKOFF))
   done
   [ "$ok" = 1 ] || { echo "!! push 失败：$platform/$owner" >&2; FAILED=$((FAILED+1)); }
   sleep "$SLEEP"
