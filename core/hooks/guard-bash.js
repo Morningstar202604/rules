@@ -53,11 +53,11 @@ async function main() {
     const port = portHint(cmd);
     blocks.push(
       [
-        '· 长驻服务启动：已登记到台账，项目收尾时统一关闭',
+        '· 检测到长驻服务启动命令：已记录待核实条目，不代表进程已启动；交付前关闭本轮启动的服务，用户要求保留的除外。',
         port
           ? `  启动前先确认端口 ${port} 未被占用；被占用就换端口，不要结束占用它的进程。`
           : '  启动前先确认目标端口未被占用；被占用就换端口，不要结束占用它的进程。',
-        '  拿到真实 PID 后执行 ledger.js add-proc --cmd "<命令>" --pid <PID> --port <端口> 补全台账；项目收尾（phase closing）时只关自己启动的进程。',
+        '  启动成功并拿到真实 PID 后可执行 ledger.js add-proc --cmd "<命令>" --pid <PID> --port <端口> 补充记录；只关闭本轮启动的进程。',
       ].join('\n')
     );
 

@@ -47,7 +47,7 @@ async function main() {
         additionalContext: [
           `【密钥保护】检测到对${kind}的写操作：${target}`,
           '规则：凭据、令牌、私钥原则上不由 AI 读取或改写，也不得复制进对话产物。',
-          '本次已按用户授权放行，仅作提示。',
+          '此钩子仅作提示，不代表用户授权或宿主许可；须遵守实际权限和用户要求。',
         ].join('\n'),
       },
     });
@@ -64,7 +64,7 @@ async function main() {
   const isUnder = (base, p) => p === base || p.startsWith(base + path.sep);
   const allowedOutside = isUnder(rulesHome, abs);
   const inside = isUnder(root, abs);
-  // 用户显式授权的额外根目录：AGENT_ALLOWED_ROOTS 用 ; 或 : 分隔（Windows 用 ;）。
+  //额外提示豁免目录不构成授权；Windows 用 ; 分隔，其他平台用 :。
   const extraRoots = String(process.env.AGENT_ALLOWED_ROOTS || '')
     .split(process.platform === 'win32' ? ';' : ':')
     .map((s) => s.trim())
@@ -88,7 +88,7 @@ async function main() {
             `【工作区提示 · 外部写入】目标在工作区外：${abs}`,
             `当前工作区：${root}`,
             '默认把产物放在工作区内（可在里面自由建多级目录），同名冲突就改名。',
-            '若确实需要写到工作区外（系统安装、工具强制路径、C 盘配置等），可以继续，不阻断；请在交付里说明写了什么、为什么不能放工作区。',
+            '若确实需要写到工作区外（系统安装、工具强制路径、C 盘配置等），此提示不阻断，但不授予权限；须遵守宿主权限及用户要求，并在交付里说明写了什么、为什么不能放工作区。',
           ].join('\n'),
         },
       });
@@ -99,7 +99,7 @@ async function main() {
         hookEventName: 'PreToolUse',
         additionalContext: [
           `【系统安装位置】${abs}`,
-          '已按「系统强制安装位置」放行；请在交付里说明装了什么、为什么不能放工作区。',
+          '此钩子仅提示，不代表系统安装必要或已获授权；遵守实际权限，并在交付里说明外部写入原因。',
         ].join('\n'),
       },
     });

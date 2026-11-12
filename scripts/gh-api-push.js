@@ -1,232 +1,129 @@
-// 通过 GitHub REST API 对当前分支做「安全快进」推送（绕过 github.com:443 的 git 协议）。
-// 约束：远端 HEAD 必须是本地 HEAD 的祖先；只新增/更新本地文件，绝不删除远端独有文件，绝不 force。
-// 用法：node scripts/gh-api-push.js <owner> [--repo rules] [--branch main] [--dry-run]
+// GitHub Git Data API: reproduce local Git objects, or refuse to update the ref.
+'use strict';
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const https = require('https');
-const { execFileSync, execSync } = require('child_process');
-
-const ROOT = path.resolve(__dirname, '..');
-
-function normalizePath(value) {
-  if (process.platform === 'win32' && /^\/[A-Za-z]\//.test(value)) {
-    return value[1].toUpperCase() + ':\\' + value.slice(3).replaceAll('/', '\\');
-  }
-  return value;
+const { execFileSync } = require('child_process');
+let ROOT = path.resolve(__dirname, '..');
+function git(...args) { return execFileSync('git', ['-C', ROOT, ...args], { maxBuffer:64 *1024 *1024 }); }
+function text(...args) { return git(...args).toString('utf8').trim(); }
+function parseCommit(sha) {
+ const raw = git('cat-file', 'commit', sha);
+ const s = raw.toString('utf8');
+ if (!Buffer.from(s).equals(raw)) throw Error('非 UTF-8 提交不支持');
+ const at = s.indexOf('\n\n');
+ if (at <0) throw Error('无效提交');
+ const lines = s.slice(0, at).split('\n');
+ const tree = /^tree ([0-9a-f]{40})$/.exec(lines.shift() || '');
+ const parents = [];
+ while (lines[0]?.startsWith('parent ')) {
+ const m = /^parent ([0-9a-f]{40})$/.exec(lines.shift());
+ if (!m) throw Error('无效父提交');
+ parents.push(m[1]);
+ }
+ function identity(line, kind) {
+ const m = new RegExp(`^${kind} (.+) <([^<>]*)> ([0-9]+) ([+-][0-9]{4})$`).exec(line || '');
+ if (!m) throw Error('不支持的提交身份');
+ const offset = (Number(m[4].slice(1,3)) *60 + Number(m[4].slice(3))) * (m[4][0] === '-' ? -1 :1);
+ if (Math.abs(offset) >1439) throw Error('无效时区');
+ const date = new Date(Number(m[3]) *1000 + offset *60000).toISOString().replace('.000Z', '') + m[4].slice(0,3) + ':' + m[4].slice(3);
+ return { name: m[1], email: m[2], date };
+ }
+ if (!tree) throw Error('无效 tree');
+ const author = identity(lines.shift(), 'author');
+ const committer = identity(lines.shift(), 'committer');
+ if (lines.length) throw Error('签名或扩展提交头无法精确重建');
+ return { tree: tree[1], parents, author, committer, message: s.slice(at +2) };
 }
-
-function parseArgs() {
-  const args = process.argv.slice(2);
-  const positional = args.filter((arg) => !arg.startsWith('--'));
-  const owner = positional[0] || 'badhope';
-  const branchIndex = args.indexOf('--branch');
-  const branch = branchIndex >= 0 && args[branchIndex + 1] ? args[branchIndex + 1] : (positional[1] || 'main');
-  const repoIndex = args.indexOf('--repo');
-  const repoName = repoIndex >= 0 && args[repoIndex + 1] ? args[repoIndex + 1] : 'rules';
-  const dryRun = args.includes('--dry-run');
-  if (!/^[A-Za-z0-9._-]+$/.test(owner) || !/^[A-Za-z0-9._-]+$/.test(repoName) || !/^[A-Za-z0-9._/-]+$/.test(branch) || branch.includes('..')) {
-    throw new Error('owner/repo/branch 参数包含非法字符');
-  }
-  return { owner, repoName, branch, dryRun };
+function collectTree(sha, trees, blobs) {
+ if (trees.has(sha)) return;
+ const entries = [];
+ for (const part of git('ls-tree', '-z', sha).toString('latin1').split('\0').filter(Boolean)) {
+ const m = /^(\d+) (tree|blob|commit) ([0-9a-f]{40})\t([\s\S]+)$/.exec(part);
+ if (!m || m[2] === 'commit') throw Error('不支持子模块');
+ const bytes = Buffer.from(m[4], 'latin1');
+ const name = bytes.toString('utf8');
+ if (!Buffer.from(name).equals(bytes)) throw Error('不支持非 UTF-8 路径');
+ const mode = m[1].padStart(6, '0');
+ if (!['040000', '100644', '100755', '120000'].includes(mode)) throw Error('不支持的文件模式');
+ entries.push({ path: name, mode, type: m[2], sha: m[3] });
+ if (m[2] === 'tree') collectTree(m[3], trees, blobs);
+ else if (!blobs.has(m[3])) {
+ const data = git('cat-file', 'blob', m[3]);
+ if (data.length >5 *1024 *1024) throw Error('blob 超过5 MiB');
+ blobs.set(m[3], data);
+ }
+ }
+ trees.set(sha, entries);
 }
-
-function secureVaultFile(file) {
-  if (process.platform !== 'win32') return;
-  try {
-    const user = os.userInfo().username;
-    const { execFileSync } = require('node:child_process');
-    execFileSync('icacls', [file, '/reset'], { stdio: 'ignore' });
-    execFileSync('icacls', [file, '/inheritance:r', '/grant:r', `${user}:R`, '/grant', '*S-1-5-18:F', '/grant', '*S-1-5-32-544:F'], { stdio: 'ignore' });
-  } catch {
-    throw new Error('Windows ACL 无法收紧，拒绝读取凭据库');
-  }
-}
-
-function loadToken(owner) {
-  const vault = normalizePath(process.env.AGENT_SECRETS_DIR || path.join(os.homedir(), '.agent-secrets'));
-  const file = path.join(vault, 'accounts.json');
-  secureVaultFile(file);
-  const value = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const token = value?.platforms?.github?.accounts?.[owner]?.token;
-  if (!token) throw new Error('GitHub 账号未配置：' + owner);
-  return token;
-}
-
 function call(method, url, body, token) {
-  return new Promise((resolve) => {
-    const data = body ? JSON.stringify(body) : null;
-    let settled = false;
-    const finish = (value) => { if (!settled) { settled = true; resolve(value); } };
-    const attempt = (retriesLeft) => {
-      const req = https.request(url, {
-        method,
-        headers: {
-          'User-Agent': 'agent-rules-push',
-          Accept: 'application/vnd.github+json',
-          Authorization: 'Bearer ' + token,
-          'Content-Type': 'application/json',
-          'Content-Length': data ? Buffer.byteLength(data) : 0,
-        },
-      }, (res) => {
-        let d = '';
-        res.on('data', (c) => { d += c; });
-        res.on('end', () => {
-          let parsed;
-          try { parsed = JSON.parse(d); } catch { parsed = null; }
-          // 5xx / 429 值得重试；4xx 直接返回让调用方读错误信息。
-          if ((res.statusCode >= 500 || res.statusCode === 429) && retriesLeft > 0) {
-            setTimeout(() => attempt(retriesLeft - 1), 2000 * (4 - retriesLeft));
-            return;
-          }
-          finish({ code: res.statusCode, body: parsed });
-        });
-      });
-      req.setTimeout(60000, () => req.destroy(new Error('request timeout')));
-      req.on('error', (e) => {
-        const msg = (e && e.message) || String(e);
-        if (retriesLeft > 0) {
-          setTimeout(() => attempt(retriesLeft - 1), 2000 * (4 - retriesLeft));
-          return;
-        }
-        finish({ code: 0, body: null, error: msg });
-      });
-      if (data) req.write(data);
-      req.end();
-    };
-    attempt(3);
-  });
+ return new Promise((resolve, reject) => {
+ const data = body ? JSON.stringify(body) : null;
+ const req = https.request(url, { method, headers: { 'User-Agent': 'agent-rules-push', Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' } }, res => {
+ let result = '';
+ res.on('data', chunk => { result += chunk; });
+ res.on('error', reject);
+ res.on('end', () => { try { resolve({ status: res.statusCode, body: JSON.parse(result) }); } catch { reject(Error('API 返回无效 JSON')); } });
+ });
+ req.setTimeout(60000, () => req.destroy(Error('request timeout')));
+ req.on('error', reject);
+ if (data) req.write(data);
+ req.end();
+ });
 }
-
-function gitEntries() {
-  const out = execFileSync('git', ['ls-files', '-s'], { cwd: ROOT, encoding: 'utf8' });
-  const entries = new Map();
-  for (const line of out.split('\n')) {
-    const match = line.match(/^(\d+) ([0-9a-f]+) \d+\t(.+)$/);
-    if (match) entries.set(match[3], { mode: match[1], sha: match[2] });
-  }
-  return entries;
+async function main(options = {}) {
+ if (options.root) ROOT = options.root;
+ const request = options.call || call;
+ const args = options.args ? [...options.args] : process.argv.slice(2);
+ const owner = args.shift();
+ let repoName = 'rules', branch = 'main', dry = false;
+ while (args.length) {
+ const arg = args.shift();
+ if (arg === '--repo') repoName = args.shift();
+ else if (arg === '--branch') branch = args.shift();
+ else if (arg === '--dry-run') dry = true;
+ else throw Error('未知参数');
+ }
+ if (!/^[A-Za-z0-9._-]+$/.test(owner || '') || !/^[A-Za-z0-9._-]+$/.test(repoName || '') || !branch || !/^[A-Za-z0-9._/-]+$/.test(branch) || branch.includes('..')) throw Error('无效参数');
+ const head = text('rev-parse', '--verify', 'HEAD^{commit}');
+ if (!/^[0-9a-f]{40}$/.test(head)) throw Error('仅支持 SHA-1 仓库');
+ const vault = process.env.AGENT_SECRETS_DIR || path.join(os.homedir(), '.agent-secrets');
+ const file = path.join(vault, 'accounts.json');
+ if (!options.call && process.platform === 'win32') {
+ try {
+ const user = os.userInfo().username;
+ execFileSync('icacls', [file, '/reset'], { stdio: 'ignore' });
+ execFileSync('icacls', [file, '/inheritance:r', '/grant:r', `${user}:R`, '/grant', '*S-1-5-18:F', '/grant', '*S-1-5-32-544:F'], { stdio: 'ignore' });
+ } catch { throw Error('Windows ACL 无法收紧，拒绝读取凭据库'); }
+ }
+ const token = options.call ? 'offline-test' : JSON.parse(fs.readFileSync(file, 'utf8'))?.platforms?.github?.accounts?.[owner]?.token;
+ if (!token) throw Error('账号未配置');
+ const base = `https://api.github.com/repos/${owner}/${repoName}`;
+ const refPath = branch.split('/').map(encodeURIComponent).join('/');
+ const getRef = () => request('GET', `${base}/git/ref/heads/${refPath}`, null, token);
+ const ref = await getRef();
+ const remote = ref.body?.object?.sha;
+ if (ref.status !==200 || !/^[0-9a-f]{40}$/.test(remote || '')) throw Error(`读取 ref失败 HTTP ${ref.status}`);
+ try { git('merge-base', '--is-ancestor', remote, head); } catch { throw Error('远端不是本地 HEAD 的祖先，拒绝推送'); }
+ if (remote === head) { console.log('远端已是本地 HEAD'); return; }
+ const commits = text('rev-list', '--reverse', '--topo-order', `${remote}..${head}`).split('\n').map(sha => ({ sha, ...parseCommit(sha) }));
+ const trees = new Map(), blobs = new Map();
+ for (const c of commits) collectTree(c.tree, trees, blobs);
+ console.log(`commits: ${commits.length}, trees: ${trees.size}, blobs: ${blobs.size}`);
+ if (dry) { console.log('dry-run：未写入远端，实际写入仍需校验 SHA'); return; }
+ async function create(kind, expected, body) {
+ const r = await request('POST', `${base}/git/${kind}`, body, token);
+ if (r.status !==201 || r.body?.sha !== expected) throw Error(`${kind} 创建失败或 SHA 不一致 (HTTP ${r.status})`);
+ }
+ for (const [sha, blob] of blobs) await create('blobs', sha, { content: blob.toString('base64'), encoding: 'base64' });
+ for (const [sha, tree] of trees) await create('trees', sha, { tree });
+ for (const { sha, ...commit } of commits) await create('commits', sha, commit);
+ const patch = await request('PATCH', `${base}/git/refs/heads/${refPath}`, { sha: head, force: false }, token);
+ if (patch.status !==200 || patch.body?.object?.sha !== head) throw Error(`ref 更新失败 HTTP ${patch.status}`);
+ const verified = await getRef();
+ if (verified.body?.object?.sha !== head) throw Error('ref 回读校验失败');
+ console.log(`pushed ${owner}/${repoName}: ${remote.slice(0,7)} -> ${head.slice(0,7)}`);
 }
-
-function gitBlob(file) {
-  return execFileSync('git', ['show', `HEAD:${file}`], {
-    cwd: ROOT,
-    encoding: 'buffer',
-    maxBuffer: 10 * 1024 * 1024,
-  });
-}
-
-async function createBlob(repo, file, token) {
-  const buf = gitBlob(file);
-  if (buf.length > 5 * 1024 * 1024) throw new Error('文件超过 GitHub API 5 MiB 限制：' + file);
-  const result = await call('POST', `${repo}/git/blobs`, {
-    content: buf.toString('base64'),
-    encoding: 'base64',
-  }, token);
-  if (result.code !== 201 || !result.body?.sha) {
-    throw new Error('blob 创建失败：' + file + '（HTTP ' + result.code + (result.error ? ' ' + result.error : '') + '）');
-  }
-  return result.body.sha;
-}
-
-(async () => {
-  const { owner, repoName, branch, dryRun } = parseArgs();
-  const token = loadToken(owner);
-  const repo = `https://api.github.com/repos/${owner}/${repoName}`;
-
-  const ref = await call('GET', `${repo}/git/ref/heads/${branch}`, null, token);
-  if (ref.code !== 200 || !ref.body?.object?.sha) { console.error('ref read failed', ref.code); process.exit(1); }
-  const parentSha = ref.body.object.sha;
-
-  // 安全闸门：远端提交必须存在于本地且是 HEAD 的祖先，否则拒绝用 API 覆盖。
-  try {
-    execFileSync('git', ['cat-file', '-e', `${parentSha}^{commit}`], { cwd: ROOT, stdio: 'ignore' });
-    execFileSync('git', ['merge-base', '--is-ancestor', parentSha, 'HEAD'], { cwd: ROOT, stdio: 'ignore' });
-  } catch {
-    console.error(`拒绝 API 推送：远端 HEAD ${parentSha.slice(0, 7)} 不在本地历史中；先 fetch 并确认快进，不能用 API 覆盖。`);
-    process.exit(2);
-  }
-
-  const parentCommit = await call('GET', `${repo}/git/commits/${parentSha}`, null, token);
-  if (parentCommit.code !== 200 || !parentCommit.body?.tree?.sha) { console.error('parent commit read failed', parentCommit.code); process.exit(1); }
-  const baseTree = parentCommit.body.tree.sha;
-
-  const entries = gitEntries();
-  const files = [...entries.keys()];
-  console.log('files:', files.length);
-
-  const remoteTree = await call('GET', `${repo}/git/trees/${baseTree}?recursive=1`, null, token);
-  if (remoteTree.code !== 200) { console.error('tree read failed', remoteTree.code); process.exit(1); }
-  const remoteEntries = new Map(
-    (remoteTree.body.tree || [])
-      .filter((x) => x.type === 'blob')
-      .map((x) => [x.path, { sha: x.sha, mode: x.mode }])
-  );
-  const localPaths = new Set(files);
-  const remoteOnly = [...remoteEntries.keys()].filter((p) => !localPaths.has(p));
-  if (remoteOnly.length) {
-    console.log(`保留远端独有文件 ${remoteOnly.length} 个（API 推送不删除任何远端文件）。`);
-  }
-
-  let reused = 0;
-  let created = 0;
-  const tree = [];
-  for (const f of files) {
-    const abs = path.join(ROOT, f);
-    if (!fs.existsSync(abs)) continue;
-    const local = entries.get(f);
-    const remote = remoteEntries.get(f);
-    if (remote && remote.sha === local.sha) {
-      reused += 1;
-      continue;
-    }
-    created += 1;
-    if (!dryRun) {
-      const sha = await createBlob(repo, f, token);
-      tree.push({ path: f, mode: local.mode, type: 'blob', sha });
-    }
-  }
-  console.log(`changed blobs: ${created}, unchanged: ${reused}`);
-  if (dryRun) {
-    console.log('dry-run：未写入远端。');
-    return;
-  }
-  if (!tree.length) {
-    console.log('远端内容已一致，无需提交。');
-    return;
-  }
-
-  // 分块提交 tree（避免单请求过大）
-  let currentTree = baseTree;
-  const CHUNK = 60;
-  for (let i = 0; i < tree.length; i += CHUNK) {
-    const chunk = tree.slice(i, i + CHUNK);
-    const t = await call('POST', `${repo}/git/trees`, { base_tree: currentTree, tree: chunk }, token);
-    if (t.code !== 201) { console.error('tree failed at', i, t.code, t.body); process.exit(1); }
-    currentTree = t.body.sha;
-    console.log(`  tree chunk ${i}-${i + chunk.length} ok`);
-  }
-
-  // 用本地提交的完整 message + author/committer + 时间复现同一 commit SHA。
-  // 注意：git 的 commit 对象 message 以单个 \n 结尾，GitHub API 不会自动补，必须自己带。
-  const meta = execSync('git log -1 --format=%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%B', {
-    cwd: ROOT, encoding: 'utf8',
-  }).replace(/\s+$/, '');
-  const parts = meta.split('\x00');
-  const message = parts.slice(6).join('\x00').replace(/\s+$/, '') + '\n';
-  const [an, ae, aI, cn, ce, cI] = parts;
-  const commit = await call('POST', `${repo}/git/commits`, {
-    message,
-    tree: currentTree,
-    parents: [parentSha],
-    author: { name: an, email: ae, date: aI },
-    committer: { name: cn, email: ce, date: cI },
-  }, token);
-  if (commit.code !== 201) { console.error('commit failed', commit.code, commit.body); process.exit(1); }
-
-  const upd = await call('PATCH', `${repo}/git/refs/heads/${branch}`, { sha: commit.body.sha, force: false }, token);
-  if (upd.code !== 200) { console.error('ref update failed', upd.code); process.exit(1); }
-
-  const localSha = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim();
-  console.log(`pushed ${owner}: ${parentSha.slice(0, 7)} -> ${commit.body.sha.slice(0, 7)}${commit.body.sha === localSha ? ' (same as local)' : ' (local ' + localSha.slice(0, 7) + ')'}`);
-})();
+if (require.main === module) main().catch(err => { console.error(err.message); process.exitCode =1; });
+module.exports = { main };

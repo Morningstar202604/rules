@@ -55,15 +55,15 @@ function build(cwd, payload, prompt) {
   const cur = body.trim() ? extractCurrentState(body) : [];
   if (cur.length) lines.push(`断点：${cur.join(' | ')}`);
 
-  if (!body.trim()) lines.push('该文件尚未建立：本轮给出计划时先创建并写入目标、约束、计划、决策与验证结论。');
+  if (!body.trim()) lines.push('该文件尚未建立：仅在允许写入且有持久化价值时按需创建；只读或禁止写入时不创建。');
 
   if (RECALL_HINT.test(prompt) && body.trim()) {
     const index = m.headingIndex(body);
-    lines.push('本轮为上下文回顾：先读该文件，按下述索引跳读；禁止重扫代码库、禁止复述历史对话全文。');
+    lines.push('本轮为上下文回顾：可按下述索引查阅，必要时核对代码及实际现状。');
     if (index.length) lines.push(...index);
   }
 
-  lines.push('纪律：事实以记忆文件为准；发现不符先更新文件；不贴大段代码或日志。');
+  lines.push('记忆可能过时；以当前用户要求和可验证的实际现状为准，允许写入时按需更新。');
   return lines.join('\n');
 }
 

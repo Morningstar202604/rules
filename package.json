@@ -8,10 +8,12 @@
     "rules": "install.js"
   },
   "scripts": {
- "test": "npm run selftest && npm run security:selftest && npm run install:selftest",
+ "test": "npm run selftest && npm run security:selftest && npm run install:selftest && npm run test:upload && npm run test:evals",
+ "test:upload": "node --test tests/upload-offline.test.js",
  "selftest": "node core/hooks/selftest.js",
  "security:selftest": "node scripts/security_selftest.js",
  "install:selftest": "node scripts/install_ownership_test.js",
+ "test:evals": "python -I -B tests/evals/test_components.py",
     "install:zcode": "node install.js --tool zcode",
     "install:claude": "node install.js --tool claude",
     "verify": "node scripts/verify.js"

@@ -28,8 +28,8 @@ jobs:
           grep -q "translation-team-lead" /tmp/agent.txt
           python core/skills/skill-router/scripts/skill_router.py "帮我画一个系统架构图" --skills-dir core/skills --top 3 | tee /tmp/skill.txt
           grep -q "diagram-builder-pro" /tmp/skill.txt
-      - name: Hook selftest
-        run: node core/hooks/selftest.js
+ - name: Offline regression suite
+ run: npm test
       - name: Repo verification
         run: node scripts/verify.js
       - name: Installer dry-run
