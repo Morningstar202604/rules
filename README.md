@@ -24,7 +24,7 @@ node install.js --tool claude         # 或只装某一个
 | `node install.js --tool zcode --home D:/rules` | 装到自定义目录（含 portable 场景） |
 | `node install.js --tool zcode --no-hooks` | 只装规则/技能/子代理/命令，不装钩子 |
 | `node install.js --tool zcode --uninstall` | 卸载；**安装后被改动过的文件一律保留** |
-| `npm test` | 跑钩子自检与凭据安全回归（68 个钩子用例 + 安全自检） |
+| `npm test` | 跑钩子、凭据安全、安装回归、离线上传 mock 与 Python组件评测 |
 | `npm run selftest` | 只跑钩子自检（68 个用例） |
 | `npm run verify` | 跑仓库数量、文档、安装器、包内容与凭据安全门禁 |
 
@@ -41,6 +41,8 @@ templates/             凭据库、记忆文件的最小模板（不含任何真
 docs/                  移植说明、分层模型、钩子协议、上传规范、凭据接入、技能清单、插件清单、一键复用提示词
 THIRD_PARTY_NOTICES.md 上游技能与子代理的许可声明
 ```
+
+上传行为详见 [`docs/UPLOAD.md`](docs/UPLOAD.md)：GitHub API 可精确重建提交并快进分支，回读确认远端 HEAD 等于本地 HEAD；无法精确快进时失败，不覆盖远端。
 
 ## 钩子做了什么（支持钩子的工具才启用）
 

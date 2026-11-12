@@ -5,7 +5,7 @@
 ## 执行契约
 
 - 从 stdin 读 JSON payload（`{ session_id, cwd, tool_name, tool_input, prompt, ... }`）。
-- 向 stdout 写一行 JSON；不输出即视为"放行"。
+- 向 stdout 写一行 JSON；不输出表示钩子未提出决策，不代表用户授权或宿主许可。
 - 任何异常都在 `main().catch(() => {})` 里吞掉，**钩子永不因自身错误阻断用户**。
 - 状态文件写在 `<安装目录>/memory/<项目>-<hash>.state.json`，可用 `AGENT_RULES_MEMORY_DIR` 重定向。
 
@@ -13,7 +13,7 @@
 
 ### session-start.js（SessionStart）
 
-读工作区记忆文件，把路径与标题索引注入上下文；重置 `stopRounds` 与提示标记。
+读工作区记忆文件，把路径与标题索引注入上下文；重置 `stopRounds` 与提示标记并写状态文件。记忆按需使用，只读或禁止写入时不要求创建；自动状态写入可能仍发生。
 
 ### user-prompt.js（UserPromptSubmit）
 
@@ -31,8 +31,8 @@
 
 - 13 条危险命令规则（`lib/danger-rules.js`）：`git reset --hard`、`git clean -f`、`rm -rf`、`DROP TABLE`、无 WHERE 的 UPDATE/DELETE、`mkfs`/`dd`、`npm publish`、生产部署、迁移重置、按名杀进程、历史改写等 → 提示 + 给出可回滚做法。
 - 密钥类 git 操作（`git add -A`、`git add .env`、`--no-verify`）→ 提示。
-- 长驻服务启动（dev server / `docker run` / `uvicorn` 等）→ 登记到台账 `runningProcs`；构建/测试类一次性命令不登记。清理时机是项目收尾，不是每轮。
-- 永远只注入 `additionalContext`，不返回 `permissionDecision`，因此不会弹权限确认。
+- 检测到长驻服务启动命令（dev server / `docker run` / `uvicorn` 等）→ 执行前写入待核实台账条目并提示补充真实 PID；条目不证明进程已启动。构建/测试类一次性命令不登记。交付前按实际进程核对并关闭本轮服务，用户要求保留的除外。
+- 钩子只注入 `additionalContext`，不返回 `permissionDecision`；宿主仍可能根据自身权限策略要求确认。
 
 ### plan-sync.js（PostToolUse · TodoWrite）
 
@@ -55,7 +55,7 @@
 
 ### ledger.js（手动 CLI，非事件钩子）
 
-台账的唯一读写入口：
+手动操作台账的 CLI；钩子也会更新状态，台账可能不完整或过时，须结合实际进程核对：
 
 ```bash
 node hooks/ledger.js status
@@ -67,7 +67,7 @@ node hooks/ledger.js artifact --note "dist/"
 node hooks/ledger.js decision --title "..." --original "..." --judgment "..." --chosen "..." --why "..."
 ```
 
-`decision` 把纠偏与关键决策追加到记忆文件的 `## 关键决策与依据` 区块（跨会话可读），用于记录「用户原方案 / 我的判断 / 采用方案 / 依据」。按 AGENTS.md §五 第 18 条推翻用户方案后必须记一条。
+`decision` 把纠偏与关键决策追加到记忆文件的 `## 关键决策与依据` 区块（跨会话可读），用于记录「用户原方案 / 我的判断 / 采用方案 / 依据」。按 AGENTS.md §五 第 18 条纠偏后仅在允许写入且有跨会话价值时记录，不覆盖用户明确要求。
 
 除 `status` 与 `decision` 外每次变更都会同步渲染记忆文件的 `<!-- ledger:start --> ... <!-- ledger:end -->` 区块。状态字段：`projectPhase`、`runningProcs`、`changedFiles`、`artifacts`。
 
@@ -78,7 +78,7 @@ node hooks/ledger.js decision --title "..." --original "..." --judgment "..." --
 - 超过 25 分钟未更新 → 提醒写「## 当前状态」（当前切片 / 上一步结果 / 下一步）。
 - 45 分钟冷却，不重复刷屏。
 
-它与 `stop-guard` 的严格检查点模式互补：`checkpoint-remind` 是**提醒**（不阻断），strict 模式是**门禁**（阻断收尾）。
+它与 `stop-guard` 的严格检查点模式互补；两者均为提醒，不授予权限，也不阻断收尾。
 
 ### 严格检查点模式（配置开关）
 
@@ -88,11 +88,11 @@ node hooks/ledger.js decision --title "..." --original "..." --judgment "..." --
 { "checkpoints": { "strict": false } }
 ```
 
-设为 `true` 后，`stop-guard` 在 active 阶段发现「记忆文件超过 60 分钟未更新 + 仍有未完成待办」会阻断收尾，要求先落检查点。默认关闭——普通问答被拦会烦人；长期跑的任务建议打开。
+设为 `true` 后，`stop-guard` 在 active 阶段发现「记忆文件超过 60 分钟未更新 + 仍有未完成待办」会提醒检查点过期，不会阻断收尾。默认关闭；是否启用按任务和用户约束决定。
 
 ### cleanup-check.js（被 stop-guard 在 closing 阶段调用，也可独立运行）
 
-扫描工作区（深度 3、上限 3000 文件）找临时文件（`.tmp/.bak/.orig/.rej/*~/.swp/.log` 等）、本轮报告文件、被改动文档、改动文件清单；`git ls-files` 能识别为已跟踪的文件不算临时；每次收尾只阻断一次。
+扫描工作区（深度 3、上限 3000 文件）找临时文件（`.tmp/.bak/.orig/.rej/*~/.swp/.log` 等）、本轮报告文件、被改动文档、改动文件清单；`git ls-files` 能识别为已跟踪的文件不算临时；同一轮最多提醒一次，不阻断收尾。
 
 ## 自检
 

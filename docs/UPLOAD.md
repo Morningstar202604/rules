@@ -1,13 +1,13 @@
 # 上传规范（GitCode / Gitee / GitHub）
 
-本文件是上传的唯一操作口径。目标：全程用 token 直接认证，不弹浏览器/系统凭据窗口；Git 通道失败时只在可安全快进的前提下走 API。
+本文件是上传的唯一操作口径。目标：全程用 token 直接认证，不弹浏览器/系统凭据窗口；GitHub API 可精确重建本地提交并快进更新分支。
 
 ## 一、五条铁律
 
 1. **不走 GCM / 浏览器 / 2FA 弹窗**。出现认证窗口就中止，检查是否漏了 `-c credential.helper=` 或 `GIT_ASKPASS`。
 2. **token 不进 URL、argv、日志、仓库、聊天产物**。统一从本机凭据库 `~/.agent-secrets/accounts.json` 读取，由 askpass 或 API 请求头携带。
 3. **先提交，再上传**。工作区必须干净；上传的是 `HEAD`，不是未提交的临时文件。
-4. **默认 git push；API 只做安全回退**。API 只在“远端 HEAD 是本地 HEAD 的祖先”时执行；禁止 force，禁止删除远端独有文件。
+4. **默认 git push；网络错误时走 GitHub API 快进**。API 只在远端 HEAD 是本地祖先时执行：精确重建本地提交对象、校验 SHA，再以 `force:false` 更新 ref 并回读核对。认证、分叉或未知错误立即停止。
 5. **上传后必须核对**：远端 ref、标签、描述/topics、CI 结论，缺一不可。
 
 ## 二、方式选择
@@ -15,7 +15,7 @@
 | 情况 | 使用方式 |
 |---|---|
 | 正常上传 | `bash scripts/upload_all.sh /path/to/repo` |
-| GitHub git 443 被重置/超时 | 自动调用 `scripts/gh-api-push.js` 安全快进；也可手动执行 |
+| GitHub git 443 被重置/超时 | 自动或手动执行 `scripts/gh-api-push.js`：精确重建提交并快进 ref，回读确认远端 HEAD 等于本地 HEAD |
 | Gitee/GitCode git 失败 | 先重试/换网络；小增量可用对应平台 contents/commits API，大批量仍应走 git |
 | 远端有本地没有的提交 | **停**。先 fetch/merge 并确认快进，禁止 force 或 API 覆盖 |
 | 出现认证弹窗 | **停**。不要输入密码，改用 `GIT_ASKPASS` + token |
@@ -38,27 +38,25 @@ git -c credential.helper= \
 - 禁止 `git config --global credential.helper store`，禁止把 token 拼进 remote URL。
 - 本机已有 `credential.helper=manager`（GCM）时，必须用 `-c credential.helper=` 覆盖；否则会弹窗。
 
-## 四、GitHub API 安全快进
+## 四、GitHub API 快进推送
 
-适用：`github.com:443` 的 git 协议不可用，但 `api.github.com` 可访问。
+适用：`github.com:443` 的 git 协议不可用，但 `api.github.com` 可访问。API 不依赖 Git 传输，可直接完成快进推送。
 
 ```bash
 # 只检查会改哪些文件，不写远端
 node scripts/gh-api-push.js <owner> --repo rules --branch main --dry-run
 
-# 真正推送
+# 精确重建本地提交并快进 main
 node scripts/gh-api-push.js <owner> --repo rules --branch main
 ```
 
 脚本行为：
 
-- 读取远端 `main` 的 HEAD，要求该提交已存在于本地，且是本地 `HEAD` 的祖先；否则拒绝执行。
-- 只新增/更新本地与远端内容不同的 blob；远端独有文件**保留不删**。
-- 用远端 HEAD 作为父提交创建新提交，更新 ref 时 `force: false`。
-- 超过 GitHub 单文件 5 MiB 限制会停止并报错。
-- 不替代代码审查；如果本地不是快进关系，必须先人工处理分叉。
-
-API 快进会生成一个本地没有的提交 SHA。之后再用 `git push` 可能报 `non-fast-forward`；应先把远端提交 fetch 下来并 merge/rebase 到本地，或继续用 API 推送，**不要 force**。`scripts/upload_all.sh` 只会在远端 HEAD 确实是本地祖先时自动走 API；否则会拒绝，这是有意的安全闸门。
+- 固定本地 `HEAD` 为目标 SHA；读取远端 HEAD，要求它是本地 HEAD 的祖先，否则拒绝。
+- 按本地 Git 对象重建缺失的 blob/tree/commit，逐个校验 API 返回 SHA 与本地对象一致；签名提交、子模块或其他无法精确重建的对象直接失败。
+- 用 `PATCH /git/refs/heads/main`、`force:false` 更新 ref；若远端在读取后被并发推进，服务端会拒绝非快进更新，脚本失败且不覆盖。
+- 更新后回读 ref，只有远端 SHA **精确等于本地 HEAD** 才报告成功。
+- 只允许操作脚本所在仓库，不执行其他仓库里的 askpass 或 API 脚本。
 
 token 由脚本从本机凭据库读取，不接受命令行传入。
 
@@ -79,7 +77,7 @@ Gitee/GitCode 的 contents/commits API 只适合小增量；没有批量原子�
 | `Authentication failed` / 401 | 检查 token 是否过期、账号名是否对应、scope 是否够；不要重试到锁号 |
 | 403 rate limit | 等待重置或换 token；不要并发轰炸 |
 | `non-fast-forward` / `fetch first` | 停止；先 fetch/merge；禁止 `--force` 除非用户明确要求并确认 |
-| `Connection was reset` / timeout | GitHub 用安全 API 快进；其他平台重试或换网络 |
+| `Connection was reset` / timeout | 重试或换网络；GitHub 用 API 精确重建并快进，最终核对远端 ref 等于本地 HEAD |
 | 认证弹窗 | 立即中止；检查 `credential.helper`、`GIT_ASKPASS`、`GIT_TERMINAL_PROMPT=0` |
 | CI 红 | 读失败 job 日志，修根因后重新提交；不要用跳过测试的方式变绿 |
 
