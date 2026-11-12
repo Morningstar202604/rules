@@ -13,7 +13,8 @@ ROUTER = ROOT / 'core/skills/skill-router/scripts/skill_router.py'
 
 
 def run(script, *args, cwd):
-    env = dict(os.environ, ZCODE_SKILL_ROUTER_NO_CACHE='1')
+    env = dict(os.environ, ZCODE_SKILL_ROUTER_NO_CACHE='1',
+               PYTHONIOENCODING='utf-8', PYTHONUTF8='1')
     return subprocess.run([sys.executable, '-B', str(script), *map(str, args)],
     cwd=cwd, env=env, text=True, encoding='utf-8',
     capture_output=True, timeout=30)
