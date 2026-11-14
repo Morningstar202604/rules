@@ -1,0 +1,9 @@
+{
+  "id": "github",
+  "name": "GitHub",
+  "url": "https://github.com",
+  "color": "#181717",
+  "aliases": [
+    "gh"
+  ]
+}

@@ -33,9 +33,9 @@ Does not apply: Claude Code Workflow-tool automation → `workflow-builder`; run
 
 | Input | Required | Description |
 |------|------|------|
-| requirements.json | Required when designing the architecture | Copy `assets/sample_system_requirements.json` and adapt it; keys: `goal`, `tasks[]`, `constraints{max_response_time, budget_per_task, concurrent_tasks}`, `team_size` |
-| tool_descriptions.json | Required when generating schemas | Copy `assets/sample_tool_descriptions.json` and adapt it; describe each agent's tools in plain JSON |
-| execution_logs.json | Required when evaluating | Real run logs; for a dry-run you can use `assets/sample_execution_logs.json` directly |
+| requirements.json | Required when designing the architecture | Copy `assets/sample-requirements.json` and adapt it; keys: `goal`, `tasks[]`, `constraints{max_response_time, budget_per_task, concurrent_tasks}`, `team_size` |
+| tool_descriptions.json | Required when generating schemas | Copy `assets/sample-tool-descriptions.json` and adapt it; describe each agent's tools in plain JSON |
+| execution_logs.json | Required when evaluating | Real run logs; for a dry-run you can use `assets/sample-execution-logs.json` directly |
 | workflow pattern + name | Required for quick scaffolding | pattern is one of `sequential` / `parallel` / `router` / `orchestrator` / `evaluator` |
 
 When missing, ask for all at once: "Please provide: (1) the stage you're at (design architecture / generate schema / evaluate logs / scaffold); (2) the corresponding input JSON file (or let me copy and adapt from the assets/ sample)."
@@ -54,8 +54,8 @@ test -f scripts/agent_planner.py && test -f scripts/tool_schema_generator.py \
 # Expected: OK; on failure → cd to the skill directory and retry; if still failing, STOP
 
 # 3. The sample assets are in place (fatal; the template source for step inputs)
-test -f assets/sample_system_requirements.json && test -f assets/sample_tool_descriptions.json \
-  && test -f assets/sample_execution_logs.json && echo OK
+test -f assets/sample-requirements.json && test -f assets/sample-tool-descriptions.json \
+  && test -f assets/sample-execution-logs.json && echo OK
 # Expected: OK
 ```
 
@@ -86,7 +86,7 @@ Each step's JSON output is the design input for the next. All paths are relative
 
 ### Step 1: Design the architecture
 
-Action (run): write requirements.json (copy `assets/sample_system_requirements.json` and adapt it), then:
+Action (run): write requirements.json (copy `assets/sample-requirements.json` and adapt it), then:
 
 ```bash
 python3 scripts/agent_planner.py assets/sample-requirements.json --format json -o arch   # bundled sample requirements
@@ -97,7 +97,7 @@ On failure: input missing keys (e.g. `team_size`) → fill them in against the s
 
 ### Step 2: Generate tool schemas
 
-Action (run): write tool_descriptions.json (copy `assets/sample_tool_descriptions.json` and adapt it), then:
+Action (run): write tool_descriptions.json (copy `assets/sample-tool-descriptions.json` and adapt it), then:
 
 ```bash
 python3 scripts/tool_schema_generator.py assets/sample-tool-descriptions.json --validate -o tools
@@ -108,14 +108,14 @@ On failure: any schema is invalid → fix the tool descriptions and rerun; never
 
 ### Step 3: Evaluate execution logs
 
-Action (run): once the system is running, evaluate with real logs; for a dry-run use `assets/sample_execution_logs.json` directly:
+Action (run): once the system is running, use real logs; for a dry-run use `assets/sample-execution-logs.json` directly:
 
 ```bash
 python3 scripts/agent_evaluator.py assets/sample-execution-logs.json --detailed -o eval   # bundled sample logs
 ```
 
 Expected: produce `eval.json` containing `summary`, `agent_metrics`, `bottleneck_analysis`, `error_analysis`, `cost_breakdown`, `sla_compliance`, `optimization_recommendations`, plus split files `eval_errors.json` and `eval_recommendations.json`.
-On failure: the log JSON doesn't match the expected format → fix the fields against `assets/sample_execution_logs.json` and rerun.
+On failure: the log JSON doesn't match the expected format → fix the fields against `assets/sample-execution-logs.json` and rerun.
 
 ### Step 4: Quick scaffold (optional)
 
@@ -148,7 +148,7 @@ The design isn't done until all of these hold:
 |------|------|------|
 | Any tool prints `✗ Invalid` / not all `✓ Valid` | Tool descriptions don't meet schema constraints | Fix tool_descriptions.json and rerun step 2; don't proceed past the gate |
 | `CRITICAL: N critical issues` (N>0) | The trial exposed failure/cost/latency problems | Apply the top recommendation in `eval_recommendations.json` → rerun the trial → re-evaluate |
-| The planner output is missing `architecture_design` | requirements.json is missing keys | Fill them in against `assets/sample_system_requirements.json` and rerun |
+| The planner output is missing `architecture_design` | requirements.json is missing keys | Fill them in against `assets/sample-requirements.json` and rerun |
 | The output shape doesn't match `expected_outputs/` | Script evolution caused schema drift | Update consumers against expected_outputs/, and read the corresponding references/ doc |
 | The scaffolder reports an illegal pattern | The pattern isn't one of the five enum values | Choose from `sequential/parallel/router/orchestrator/evaluator` |
 
@@ -161,6 +161,7 @@ The design isn't done until all of these hold:
 
 ## References
 
+- assets/sample-requirements.json, assets/sample-tool-descriptions.json, assets/sample-execution-logs.json — the current kebab-case sample inputs used by every command in this file. Earlier snake_case copies (`sample_system_requirements.json`, `sample_tool_descriptions.json`, `sample_execution_logs.json`) are kept unchanged in `references/legacy-snake-assets/` for provenance only; do not call them from commands.
 - references/agent_architecture_patterns.md — read when the step-1 pattern choice is uncertain (detailed trade-offs per pattern)
 - references/workflow_patterns.md — read when using the scaffolder in step 4 (skeleton templates + handoff contract; merged from agent-workflow-designer)
 - references/tool_design_best_practices.md — read when designing tools in step 2 (schema, idempotency, error-handling rules)

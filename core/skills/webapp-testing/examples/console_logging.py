@@ -1,4 +1,7 @@
-from playwright.sync_api import sync_playwright
+try:
+    from playwright.sync_api import sync_playwright
+except ImportError as _import_error:
+    raise ImportError("pip install playwright && playwright install chromium") from _import_error
 
 # Example: Capturing console logs during browser automation
 

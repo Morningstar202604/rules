@@ -4,10 +4,13 @@ from abc import ABC, abstractmethod
 from contextlib import AsyncExitStack
 from typing import Any
 
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.sse import sse_client
-from mcp.client.stdio import stdio_client
-from mcp.client.streamable_http import streamablehttp_client
+try:
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.sse import sse_client
+    from mcp.client.stdio import stdio_client
+    from mcp.client.streamable_http import streamablehttp_client
+except ImportError as _import_error:
+    raise ImportError("pip install mcp anthropic") from _import_error
 
 
 class MCPConnection(ABC):

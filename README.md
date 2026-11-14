@@ -25,17 +25,17 @@ node install.js --tool claude         # 或只装某一个
 | `node install.js --tool zcode --no-hooks` | 只装规则/技能/子代理/命令，不装钩子 |
 | `node install.js --tool zcode --uninstall` | 卸载；**安装后被改动过的文件一律保留** |
 | `npm test` | 跑钩子、凭据安全、安装回归、离线上传 mock 与 Python组件评测 |
-| `npm run selftest` | 只跑钩子自检（68 个用例） |
+| `npm run selftest` | 只跑钩子自检（72 个用例） |
 | `npm run verify` | 跑仓库数量、文档、安装器、包内容与凭据安全门禁 |
 
 ## 装了什么
 
 ```
 AGENTS.md              全局工作规范（输出、验证、安全、记忆、切片、边界与移植）
-core/skills/           100 个技能（工作契约、AQG 审计、代码审查、调试、架构、前后端、数据、安全、工程管理、技能路由、视觉与文档等）
+core/skills/           102 个技能（工作契约、AQG 审计、代码审查、调试、架构、前后端、数据、安全、工程管理、技能路由、视觉与文档等）
 core/agents/           220 个子代理角色（软件/数据/内容/学术/电商/设计/视频/翻译等战队）
 core/commands/         4 个斜杠命令（review / arch-review / security-scan / test-gap）
-core/hooks/            8 个事件钩子 + cleanup-check 收尾辅助 + ledger 台账 CLI + 8 个共用模块 + Claude Code 输出适配器
+core/hooks/            9 个事件钩子 + cleanup-check 收尾辅助 + ledger 台账 CLI + 8 个共用模块 + Claude Code 输出适配器
 install.js             跨工具安装器
 templates/             凭据库、记忆文件的最小模板（不含任何真实凭据）
 docs/                  移植说明、分层模型、钩子协议、上传规范、凭据接入、技能清单、插件清单、一键复用提示词
@@ -77,7 +77,7 @@ node <规则目录>/hooks/ledger.js phase done
 
 | 配置 | 值 | 原因 |
 |---|---|---|
-| `skills.metadataBudget` | 60000 | 默认 20000 撑不住 100 个技能，超限后触发词全丢 |
+| `skills.metadataBudget` | 60000 | 默认 20000 撑不住 100+ 个技能，超限后触发词全丢 |
 | `toolConcurrency.maxConcurrency` | 16 | 允许更多并行工具调用 |
 | `features.*` | 全开 | compact / rewind / subagent / memory / skill / mcp |
 | `hooks.maxOutputBytes` | 65536 | 台账与收尾报告可能较长 |
@@ -107,7 +107,7 @@ node <规则目录>/hooks/ledger.js phase done
 
 ## 目录详情
 
-### 技能（100）
+### 技能（102）
 
 | 技能 | 用途 |
 |---|---|

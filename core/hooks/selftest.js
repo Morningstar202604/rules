@@ -62,6 +62,19 @@ function parseOut(out) {
   return JSON.parse(out);
 }
 
+// repeat-guard 需要观察连续多次调用：外层用例先跑一次，这里重置状态后受控重跑。
+function resetRepeatState(cwd, turnStartedAt) {
+  m.writeState(cwd, { turnStartedAt: turnStartedAt || new Date().toISOString() });
+}
+
+function repeatSequence(cwd, input, times, toolName = 'Bash') {
+  const outputs = [];
+  for (let i = 0; i < times; i += 1) {
+    outputs.push(parseOut(run('repeat-guard.js', { tool_name: toolName, cwd, tool_input: input })));
+  }
+  return outputs;
+}
+
 function checkSchema(obj) {
   if (!obj) return null;
   const extra = Object.keys(obj).filter((k) => !ALLOWED_TOP_KEYS.has(k));
@@ -370,6 +383,54 @@ payload: { tool_name: 'Write', cwd: CASE_CWD, tool_input: { file_path: 'web/scho
     },
     payload: (cwd) => ({ session_id: 'st-sess', cwd, tool_name: 'Bash' }),
     expect: (o, cwd) => !!o?.additionalContext && o.additionalContext.includes('长任务心跳') && m.readState(cwd).toolCalls === 15 },
+  { name: 'repeat-guard: 连续 3 次提示且不返回权限决策', script: 'repeat-guard.js',
+    payload: (cwd) => ({ tool_name: 'Bash', cwd, tool_input: { command: 'npm run build' } }),
+    expect: (o, cwd) => {
+      resetRepeatState(cwd);
+      const outs = repeatSequence(cwd, { command: 'npm run build' }, 3);
+      const text = outs[2]?.hookSpecificOutput?.additionalContext || '';
+      return outs[0] === null && outs[1] === null
+        && text.includes('重复调用提醒') && text.includes('不阻断调用')
+        && outs.every((x) => !x || (x.hookSpecificOutput?.permissionDecision === undefined
+          && x.hookSpecificOutput?.permissionDecisionReason === undefined && x.decision === undefined
+          && x.continue === undefined));
+    } },
+  { name: 'repeat-guard: 交错命令不误报', script: 'repeat-guard.js',
+    payload: (cwd) => ({ tool_name: 'Bash', cwd, tool_input: { command: 'git status' } }),
+    expect: (o, cwd) => {
+      resetRepeatState(cwd);
+      const seq = ['git status', 'npm test', 'git status', 'npm test', 'git status', 'npm test'];
+      const outs = seq.map((command) => parseOut(run('repeat-guard.js', { tool_name: 'Bash', cwd, tool_input: { command } })));
+      return outs.every((x) => x === null);
+    } },
+  { name: 'repeat-guard: 新回合计数重置', script: 'repeat-guard.js',
+    payload: (cwd) => ({ tool_name: 'Bash', cwd, tool_input: { command: 'npm run lint' } }),
+    expect: (o, cwd) => {
+      const firstTurn = new Date(Date.now() - 5000).toISOString();
+      resetRepeatState(cwd, firstTurn);
+      repeatSequence(cwd, { command: 'npm run lint' }, 2);
+      const nextTurn = new Date().toISOString();
+      m.writeState(cwd, { ...m.readState(cwd), turnStartedAt: nextTurn });
+      const afterReset = parseOut(run('repeat-guard.js', { tool_name: 'Bash', cwd, tool_input: { command: 'npm run lint' } }));
+      const state = m.readState(cwd);
+      return afterReset === null && state.repeatGuard?.turnKey === nextTurn
+        && Number(state.repeatGuard?.count) === 1;
+    } },
+  { name: 'repeat-guard: 8 次升级到建议停止汇报且仍不阻断', script: 'repeat-guard.js',
+    payload: (cwd) => ({ tool_name: 'Bash', cwd, tool_input: { command: 'npm run selftest' } }),
+    expect: (o, cwd) => {
+      resetRepeatState(cwd);
+      const outs = repeatSequence(cwd, { command: 'npm run selftest' }, 8);
+      const fifth = outs[4]?.hookSpecificOutput?.additionalContext || '';
+      const eighth = outs[7]?.hookSpecificOutput?.additionalContext || '';
+      const notices = m.readState(cwd).repeatGuard?.notices || [];
+      return fifth.includes('强提示') && !fifth.includes('建议停止汇报')
+        && eighth.includes('强提示') && eighth.includes('5 次') === false
+        && eighth.includes('建议停止汇报') && eighth.includes('连续 8 次') && eighth.includes('向用户汇报')
+        && notices.length === 3
+        && outs.every((x) => !x || (x.hookSpecificOutput?.permissionDecision === undefined
+          && x.decision === undefined && x.continue === undefined));
+    } },
 ];
 
 let failed = 0;

@@ -5,7 +5,6 @@ description: React and Next.js performance optimization guidelines from Vercel E
 metadata:
   author: vercel
   version: "1.0.0"
-disable-model-invocation: true
 ---
 
 # Vercel React Best Practices
@@ -141,4 +140,4 @@ Each rule file contains:
 
 ## Full Compiled Document
 
-For the complete guide with all rules expanded: `AGENTS.md`
+For the complete guide with all rules expanded: `references/compiled-rules.md`

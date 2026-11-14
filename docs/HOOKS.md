@@ -1,6 +1,6 @@
 # 钩子说明
 
-8 个事件钩子、`cleanup-check` 收尾辅助和 `ledger` 台账 CLI 位于 `<安装目录>/hooks/`，共用 `<安装目录>/hooks/lib/` 下的 8 个模块（7 个共用模块 + 1 个 Claude Code 输出适配器 `claude-wrap.js`）。全部是纯 Node.js（>= 18）、零第三方依赖、不联网。
+9 个事件钩子、`cleanup-check` 收尾辅助和 `ledger` 台账 CLI 位于 `<安装目录>/hooks/`，共用 `<安装目录>/hooks/lib/` 下的 8 个模块（7 个共用模块 + 1 个 Claude Code 输出适配器 `claude-wrap.js`）。全部是纯 Node.js（>= 18）、零第三方依赖、不联网。
 
 ## 执行契约
 
@@ -33,6 +33,16 @@
 - 密钥类 git 操作（`git add -A`、`git add .env`、`--no-verify`）→ 提示。
 - 检测到长驻服务启动命令（dev server / `docker run` / `uvicorn` 等）→ 执行前写入待核实台账条目并提示补充真实 PID；条目不证明进程已启动。构建/测试类一次性命令不登记。交付前按实际进程核对并关闭本轮服务，用户要求保留的除外。
 - 钩子只注入 `additionalContext`，不返回 `permissionDecision`；宿主仍可能根据自身权限策略要求确认。
+
+### repeat-guard.js（PreToolUse · 所有工具）
+
+按 `tool_name` + 规范化 `tool_input` 的 sha1 统计**连续**重复：同一签名连续第 3 次提醒、第 5 次强提示、第 8 次建议停止并向用户汇报；一旦换成别的调用，连续计数从 1 重新开始。
+
+- 状态复用 `lib/memory.js` 的 `readState` / `updateState`，写在 `state.json` 的 `repeatGuard` 字段；`turnStartedAt` 变化（新回合）时计数与通知记录清零。
+- 签名只用于近似判重：对象键排序，长字符串截断到 160 字符，长数组截断到 12 项，限制嵌套深度；不用于安全判定。
+- 通知上限：同一签名最多 3 次（3/5/8 每级只提示一次）；同一签名 60 秒内不重复提示，升级提示不受冷却影响；单回合最多 6 次；`events` 最多 24 条。
+- 只输出 `hookSpecificOutput.additionalContext`（`hookEventName: PreToolUse`），**不返回 `permissionDecision`、不返回 `decision: block`、不阻断任何调用**；Claude Code 侧由 `claude-wrap.js` 转成 `systemMessage`。
+- 提示里只回显命令等短标量；长字符串（文件内容等）只报长度，避免把敏感数据写进上下文。
 
 ### plan-sync.js（PostToolUse · TodoWrite）
 
@@ -98,7 +108,7 @@ node hooks/ledger.js decision --title "..." --original "..." --judgment "..." --
 
 ```bash
 npm run selftest
-# ALL 68 CASES PASS
+# ALL 72 CASES PASS
 ```
 
 自检在 `<仓库>/.tmp/selftest/` 建临时工作区，通过 `ZCODE_MEMORY_DIR` 把记忆重定向到临时目录，不碰真实状态。可用 `AGENT_RULES_TEST_TMP` 改位置。

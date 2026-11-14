@@ -34,8 +34,8 @@ submission, stop that attempt. Keep all visible progress text in the current con
 
 ## Do not use
 
-- For hypothesis-class ideas, strategies, or proposals: use `/audit-brainstorming`, or explicitly
-  route with `artifact_intent="hypothesis"`.
+- For hypothesis-class ideas, strategies, or proposals: use `/audit-brainstorming`
+  (not bundled in this pack), or explicitly route with `artifact_intent="hypothesis"`.
 - Ordinary non-audit work, automated tests, background tasks, agent-chosen quality checks, and
   unevaluated completion reminders do not authorize a run by themselves.
 - For the same unchanged artifact audited within five turns: reuse its `audit_id`, unless the user
@@ -84,6 +84,11 @@ vague idea -> /audit-explore -> /audit-brainstorming
            -> /audit-market-research or /audit-writing-plans
            -> /audit-adjudication -> /audit
 ```
+
+(`/audit-explore`, `/audit-brainstorming`, `/audit-market-research`, and
+`/audit-writing-plans` are not bundled in this pack; only `/audit` and
+`/audit-adjudication` ship here. Route those stages with local review skills
+or skip them.)
 
 For multi-auditor findings, chain the returned `audit_id` to `/audit-adjudication` and apply the
 AQG adjudicator discipline before fixing findings.

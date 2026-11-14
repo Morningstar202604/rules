@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # Begin one task of an inline plan execution in a single call: extract the
-# task's brief (via subagent-driven-development's task-brief, so both skills
-# share one workspace) and record BASE, the commit the task's review range is
-# cut from. One tool call instead of two, because every call in an inline
-# session is a turn that re-reads the whole context.
+# task's "### Task N" section straight from the plan file into the plan's
+# workspace, and record BASE, the commit the task's review range is cut from.
+# One tool call instead of two, because every call in an inline session is a
+# turn that re-reads the whole context.
+#
+# Self-contained: the workspace is derived from the plan file, matching the
+# convention documented in plan-and-execute — no sibling skill or extra
+# script is needed.
 #
 # Usage: task-start PLAN_FILE TASK_NUMBER
 # Prints:
@@ -18,11 +22,26 @@ fi
 
 plan=$1
 n=$2
-sdd="$(cd "$(dirname "$0")/../../subagent-driven-development/scripts" && pwd)"
+[ -f "$plan" ] || { echo "plan file not found: $plan" >&2; exit 2; }
 
-out=$("$sdd/task-brief" "$plan" "$n")
-brief=$(printf '%s\n' "$out" | sed -n 's/^wrote \(.*\): [0-9][0-9]* lines$/\1/p')
-[ -n "$brief" ] || { echo "task-brief did not report a path: $out" >&2; exit 1; }
+# Workspace: <repo-root>/.superpowers/sdd/<plan-basename>/ (falls back to the
+# plan's directory when the plan lives outside a git work tree).
+repo=$(git rev-parse --show-toplevel 2>/dev/null || true)
+root=${repo:-$(dirname "$plan")}
+workspace="$root/.superpowers/sdd/$(basename "$plan")"
+mkdir -p "$workspace"
+brief="$workspace/task-${n}-brief.md"
 
-echo "brief: $brief"
+# Extract the "### Task N" section up to (exclusive) the next "###" or "##"
+# heading. "($|[^0-9])" keeps Task 1 from matching Task 10.
+section=$(awk -v n="$n" '
+  !in_section && $0 ~ ("^### Task " n "($|[^0-9])") { in_section = 1; print; next }
+  in_section && ($0 ~ /^### / || $0 ~ /^## /) { exit }
+  in_section { print }
+' "$plan")
+[ -n "$section" ] || { echo "plan has no \"### Task $n\" section: $plan" >&2; exit 1; }
+
+printf '%s\n' "$section" > "$brief"
+
+echo "brief: $(cd "$(dirname "$brief")" && pwd)/$(basename "$brief")"
 echo "base: $(git rev-parse HEAD)"

@@ -1,8 +1,8 @@
 ---
 name: code-generator
-description: Two-tier code generation (L1 script template engine + L2 agent generation) that turns a structured plan into runnable code. L1 scripts cover three families: Python FastAPI CRUD, bug-fix skeletons, and test stubs
+description: Two-tier code generation (L1 script template engine + L2 agent generation) that turns an already-approved structured plan into runnable code. L1 scripts cover three families: Python FastAPI CRUD, bug-fix skeletons, and test stubs. Do NOT use for planning, task breakdown, or executing a plan step by step — use plan-and-execute for those.
 
-description_zh: "把结构化实现计划变成可运行代码：生成 CRUD、测试桩等骨架与复杂逻辑。"
+description_zh: "把已定稿的结构化方案转成可运行代码骨架：生成 CRUD、测试桩与复杂逻辑。仅当方案已存在、需要代码骨架时使用；制定或执行方案请用 plan-and-execute。"
 license: Apache-2.0
 compatibility: Pure Python 3.8+ stdlib (the scripts have zero dependencies); L2 generation is done by the agent running this skill, no API key required.
 metadata:
@@ -122,13 +122,13 @@ The agent generates per the following discipline, not relying on the script's mo
 
 ### Step 5: Test-stub generation (actually runnable)
 
-The tdd-guide skill (in the code-quality domain of the skill library) has a real test_generator.py; the path is relative to the tdd-guide skill directory:
+The tdd-guide skill bundled in this pack has a real test_generator.py; the path is relative to the repository root:
 
 ```bash
-python "<tdd-guide>/scripts/test_generator.py" \
-  --source src/auth/service.py \
+python "core/skills/tdd-guide/scripts/test_generator.py" \
+  --input src/auth/service.py \
   --framework pytest \
-  --output tests/test_auth_service.py
+  > tests/test_auth_service.py
 ```
 
 - On failure: tdd-guide not installed → skip and note it; do not block the main flow.
