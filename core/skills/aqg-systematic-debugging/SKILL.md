@@ -48,7 +48,7 @@ a loop.
 3. Run project preflight when repo state may matter:
 
    ```bash
-   source "${AQG_ROOT:-$HOME/.deeppattern/agent-quality-gates}/scripts/_aqg_context.sh" || {
+   source "${AQG_ROOT:?required: set AQG_ROOT to the AQG installation root (containing skills/ and scripts/)}/scripts/_aqg_context.sh" || {
      echo "ERROR: cannot resolve AQG root. Fix: export AQG_ROOT=/path/to/checkout." >&2
      exit 2
    }
@@ -71,14 +71,14 @@ a loop.
 7. Verify the fix against the original symptom AND a regression check **scaled to blast radius**: trivial → one check; high-stakes (security / concurrency / multi-file / irreversible) → the adjacent regression surface (the tests covering the changed code's blast radius). Derive that surface from the changed paths → their nearest test files/modules; run the smallest targeted subset (e.g. `pytest <those paths>` / `-k`) that covers them, and record the scope + rationale. Still focused — NOT the full suite: that authoritative full-suite / clean-env run is CI's job (or the project's gate); AQG stays focused, not a CI/CD platform.
 8. Use `aqg-evidence-closeout` before final answer.
 
-If the referenced startup-preflight or evidence-closeout skill is unavailable, record that tool gap in `Boundaries` and continue with equivalent manual checks.
+If the referenced `aqg-startup-preflight` or `aqg-evidence-closeout` skill is unavailable, record that tool gap in `Boundaries` and continue with equivalent manual checks.
 
 ## Debug Case Helper
 
 Resolve the AQG root, then generate or validate a debug case skeleton:
 
 ```bash
-source "${AQG_ROOT:-$HOME/.deeppattern/agent-quality-gates}/scripts/_aqg_context.sh" || {
+source "${AQG_ROOT:?required: set AQG_ROOT to the AQG installation root (containing skills/ and scripts/)}/scripts/_aqg_context.sh" || {
   echo "ERROR: cannot resolve AQG root. Fix: export AQG_ROOT=/path/to/checkout." >&2
   exit 2
 }

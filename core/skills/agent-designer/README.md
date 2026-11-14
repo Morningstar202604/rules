@@ -20,7 +20,7 @@ The Agent Designer skill includes three core components:
 
 ```bash
 # Use sample requirements or create your own
-python agent_planner.py assets/sample_system_requirements.json -o my_architecture
+python agent_planner.py assets/sample-requirements.json -o my_architecture
 
 # This generates:
 # - my_architecture.json (complete architecture)
@@ -32,7 +32,7 @@ python agent_planner.py assets/sample_system_requirements.json -o my_architectur
 
 ```bash
 # Use sample tool descriptions or create your own
-python tool_schema_generator.py assets/sample_tool_descriptions.json -o my_tools
+python tool_schema_generator.py assets/sample-tool-descriptions.json -o my_tools
 
 # This generates:
 # - my_tools.json (complete schemas)
@@ -46,7 +46,7 @@ python tool_schema_generator.py assets/sample_tool_descriptions.json -o my_tools
 
 ```bash
 # Use sample execution logs or your own
-python agent_evaluator.py assets/sample_execution_logs.json -o evaluation
+python agent_evaluator.py assets/sample-execution-logs.json -o evaluation
 
 # This generates:
 # - evaluation.json (complete report)
@@ -330,11 +330,15 @@ Options:
 
 The `assets/` directory contains sample files to help you get started:
 
-- **`sample_system_requirements.json`**: Example system requirements for a research platform
-- **`sample_tool_descriptions.json`**: Example tool descriptions for common operations
-- **`sample_execution_logs.json`**: Example execution logs from a running system
+- **`sample-requirements.json`**: Example system requirements for a research platform
+- **`sample-tool-descriptions.json`**: Example tool descriptions for common operations
+- **`sample-execution-logs.json`**: Example execution logs from a running system
 
 The `expected_outputs/` directory shows expected results from processing these samples.
+
+Earlier snake_case copies (`sample_system_requirements.json`, `sample_tool_descriptions.json`,
+`sample_execution_logs.json`) are preserved verbatim in `references/legacy-snake-assets/` for
+provenance only; the commands above use the kebab-case files in `assets/`.
 
 ## References
 

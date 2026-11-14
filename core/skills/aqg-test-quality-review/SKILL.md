@@ -37,7 +37,7 @@ tool default — to make the behavioral-vs-shape call and adjudicate.
 ## How To Run
 
 ```bash
-source "${AQG_ROOT:-$HOME/.deeppattern/agent-quality-gates}/scripts/_aqg_context.sh" || {
+source "${AQG_ROOT:?required: set AQG_ROOT to the AQG installation root (containing skills/ and scripts/)}/scripts/_aqg_context.sh" || {
   echo "ERROR: cannot resolve AQG root. Fix: export AQG_ROOT=/path/to/checkout." >&2
   exit 2
 }

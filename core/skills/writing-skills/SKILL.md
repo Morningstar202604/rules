@@ -392,7 +392,7 @@ Edit skill without testing? Same violation.
 - Don't "adapt" while running tests
 - Delete means delete
 
-**REQUIRED BACKGROUND:** The superpowers:test-driven-development skill explains why this matters. Same principles apply to documentation.
+**REQUIRED BACKGROUND:** The superpowers:test-driven-development skill (not bundled in this pack; bundled equivalent: `tdd-guide`) explains why this matters. Same principles apply to documentation.
 
 ## Testing All Skill Types
 

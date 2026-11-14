@@ -200,7 +200,7 @@ Completeness verification: re-running the corresponding script returns exit code
 
 ## Slash Commands
 
-`/flag-cleanup` — run the full cleanup flow in the current repo: scan for debt, generate a removal plan, audit kill switches.
+`/flag-cleanup` — run the full cleanup flow in the current repo: scan for debt, generate a removal plan, audit kill switches. (This slash command is not bundled in this pack — no `commands/` directory ships here; run the cleanup flow directly from this SKILL.md's workflow instead.)
 
 ## Asset Templates
 

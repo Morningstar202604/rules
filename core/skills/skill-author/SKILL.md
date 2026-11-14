@@ -21,7 +21,8 @@ then fill the skeleton, finally self-check. The deliverable is the skill file
 itself, not prose about skills.
 
 This skill **doesn't write script logic** (only gives argparse subcommands and
-dry-run design), **doesn't do compliance checks** (that's `skill-linter`).
+dry-run design), **doesn't do full compliance checks** (`skill-linter` is a
+separate optional skill; use the inline Step 5 self-check when it's absent).
 
 ## Input Checklist
 
@@ -88,8 +89,9 @@ doesn't, because no model would search for that word.
   combine csv / join spreadsheets`).
 - **Expected**: name matches `^[a-z0-9]+(-[a-z0-9]+)*$` and is byte-identical to
   the directory name; description ≥40 and ≤1024 characters.
-- **If it fails**: self-check command `python3 skills/meta/skill-linter/scripts/lint_skill.py
-  <skill directory>` → fix line by line per `FIX:` output.
+- **If it fails**: run the Step 5 inline self-check (below) and fix each
+  failing item; `skill-linter` is optional and is not bundled at
+  `skills/meta/skill-linter/` in this pack, so never block on it.
 
 ### Step 3: Skeleton Generation
 
@@ -125,17 +127,22 @@ Four common skeleton variants (pick one, don't invent a seventh section):
 
 ### Step 5: Self-Check
 
-- **Action**: Run `python3 skills/meta/skill-linter/scripts/lint_skill.py
-  <skill directory>`, and go through the Ten Commandments below line by line.
-- **Expected**: a correctly written English skill passes with 0 FAILs. The
-  linter adapts to the English skeleton; expect at most advisory WARNs (e.g.
-  `BODY-SECTS` "1 short of the 10-section skeleton", `BODY-LINES` near the
-  220-line self-discipline limit). Act on any FAIL (e.g. `NAME-SYNC`,
-  `REF-EXISTS`, `DESC-ROUTE` shortfall); WARNs are judgment calls, not
-  defects — note the ones you accept in delivery notes.
-- **If it fails**: any non-drift FAIL → fix per `FIX:` lines then rerun; don't
-  call it "done" until those are zeroed. Keep genuinely-held WARNs (and the
-  expected drift noise) in delivery notes.
+- **Action**: Run the inline self-check below (no external linter required),
+  then go through the Ten Commandments line by line.
+
+  ```bash
+  d=<skill directory>
+  sed -n 's/^name:[[:space:]]*//p' "$d/SKILL.md" | head -1            # == basename "$d"
+  sed -n 's/^description:[[:space:]]*//p' "$d/SKILL.md" | head -1 | wc -c  # 40-1024 + "Use when"
+  wc -l < "$d/SKILL.md"; grep -c '^## ' "$d/SKILL.md"                # 150-190 (max 220); H2 >= 6
+  test -f "$d/references/sources-and-methodology.md" && echo REF-OK
+  ```
+- **Expected**: all five checks pass plus the Ten Commandments; advisory
+  shortfalls are judgment calls, not defects.
+- **If it fails**: fix and rerun; don't call it "done" until name sync,
+  references and the Commandments are clean.
+- **Note**: `skill-linter` is a separate optional skill, not bundled at
+  `skills/meta/skill-linter/`; run it if present, never block on its absence.
 
 ## Ten Commandments (Body Writing, Hard)
 
@@ -166,18 +173,20 @@ edge cases itself.
 | Steps written but no observable expected | Violates commandment 2/4 | Change expected to executable criterion (exit code / file exists / field value) |
 | Lines >190 | Knowledge stuffed into body | Move to `references/<topic>.md`, body keeps one line "when to read it" |
 | Script needs non-stdlib dependency | Breaks on environment change | Revert to stdlib; if truly needed write in `compatibility` and add startup detection |
-| Linter reports DESCRIPTION-SHORT | Description insufficient for routing | Add trigger words and exclusions, reach ≥40 chars and include `Use when` |
+| Description too short or has no `Use when` | Description insufficient for routing | Add trigger words and exclusions, reach ≥40 chars and include `Use when` |
 
 ## Delivery Criteria
 
-- Success definition: `SKILL.md` exists in target directory, linter has no FAIL,
-  Ten Commandments self-check passes line by line.
+- Success definition: `SKILL.md` exists in target directory, the inline Step 5
+  self-check reports no FAIL, and the Ten Commandments self-check passes line
+  by line. (If the optional `skill-linter` skill is installed, zero FAILs there
+  is equivalent evidence; its absence is not a failure.)
 - Artifact naming: `skills/<category>/<skill-name>/SKILL.md`; scripts in same
   directory `scripts/`; reference docs in `references/`.
 - Integrity verification: `wc -l SKILL.md` falls in 150-190; `grep -c "^## "
   SKILL.md` ≥6; `ls references/sources-and-methodology.md` non-empty.
-- Delivery notes must explicitly list: path, line count, linter conclusion,
-  kept WARNs and reasons.
+- Delivery notes must explicitly list: path, line count, self-check conclusion
+  (or linter conclusion when one was available), kept WARNs and reasons.
 
 After writing, don't opportunistically edit `manifest.json` or `packs/*/pack.json`—
 packaging relationships belong to the release process, submitted separately from
@@ -186,7 +195,8 @@ the skill itself, avoiding two kinds of change intent mixed in one PR.
 A qualified output example: need "convert table screenshots to CSV" → name
 `table-image-to-csv` → description includes `Use when` + "table to CSV / image
 to table" + exclusion "handwritten CSV parsing" → skeleton uses tool-wrapper
-variant → script `table_convert.py` with `--dry-run` default → linter no FAIL.
+variant → script `table_convert.py` with `--dry-run` default → Step 5
+self-check clean.
 
 ## References
 

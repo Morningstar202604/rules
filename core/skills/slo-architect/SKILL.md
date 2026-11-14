@@ -291,7 +291,7 @@ python scripts/slo_review.py --slo-doc assets/slos/   # 随包样例 SLO 文档�
 
 ## 斜杠命令
 
-`/slo-design` —— 交互式 SLO 设计向导，依次跑全部 3 个工具。
+`/slo-design` —— 交互式 SLO 设计向导，依次跑全部 3 个工具。（该斜杠命令未随包收录——本包不含 `commands/` 目录；请直接按本 SKILL.md 的工作流依次运行 3 个工具。）
 
 ## 资产模板
 

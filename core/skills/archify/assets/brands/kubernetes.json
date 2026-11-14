@@ -1,0 +1,9 @@
+{
+  "id": "kubernetes",
+  "name": "Kubernetes",
+  "url": "https://kubernetes.io",
+  "color": "#326CE5",
+  "aliases": [
+    "k8s"
+  ]
+}

@@ -173,8 +173,4 @@ For the exact canonical sample JSON for both plugin manifests and marketplace en
 
 ## Validation
 
-After editing `SKILL.md`, run:
-
-```bash
-python3 <path-to-skill-creator>/scripts/quick_validate.py .agents/skills/plugin-creator
-```
+After editing `SKILL.md`, validate the plugin structure. The upstream `skill-creator` `quick_validate.py` is **not bundled in this pack**; there is no equivalent scripted validator here, so check the manifest by hand against [references/plugin-json-spec.md](references/plugin-json-spec.md) (required fields, `mcp-config` shape, marketplace entry format). The bundled `skill-linter/scripts/lint_skill.py` checks a different (awesome-skillkit) spec and will report FAILs that do not apply to plugin manifests, so do not use it as a gate for this skill.

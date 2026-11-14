@@ -1,7 +1,7 @@
 ---
 name: supabase
-description: "Handle any Supabase task: Database, Auth, Edge Functions, Storage, Realtime, RLS, vectors, cron, queues and troubleshooting."
-description_zh: "处理任何 Supabase 任务：数据库、Auth、Edge Functions、Storage、RLS 与排错"
+description: "Handle any Supabase task: Database, Auth, Edge Functions, Storage, Realtime, RLS, vectors, cron, queues and troubleshooting. Scope boundary: Supabase platform only — for plain PostgreSQL table modeling use postgresql-table-design, for SQL query writing/optimization and migrations use sql-database-assistant."
+description_zh: "处理任何 Supabase 任务：数据库、Auth、Edge Functions、Storage、RLS 与排错。边界：只做 Supabase 平台层；纯 PostgreSQL 表结构建模用 postgresql-table-design，SQL 查询/优化/迁移用 sql-database-assistant。"
 license: MIT
 compatibility: 需要 Supabase 项目凭据或 CLI/MCP；数据库写操作需显式确认。
 metadata:
@@ -16,6 +16,8 @@ metadata:
 ---
 
 # Supabase
+
+**Scope boundary (three database skills, no overlap):** this skill owns **the Supabase platform layer** — Auth, RLS policy design and security traps, Edge Functions, Storage, Realtime, CLI/MCP, project settings and troubleshooting. It does not own generic PostgreSQL schema design: for data types, keys, constraints, indexing and partitioning of a plain Postgres schema use `postgresql-table-design`. It does not own query authoring or performance tuning: for writing/optimizing SQL and generating migrations use `sql-database-assistant`. When a task spans them, do the platform wiring here and defer schema shape and query tuning to the owning skill.
 
 ## Core Principles
 

@@ -44,7 +44,7 @@ If the review merely says "be careful" or "consider X", do not stop. Decide, doc
 When an adjudication table is saved to a file, validate it:
 
 ```bash
-source "${AQG_ROOT:-$HOME/.deeppattern/agent-quality-gates}/scripts/_aqg_context.sh" || {
+source "${AQG_ROOT:?required: set AQG_ROOT to the AQG installation root (containing skills/ and scripts/)}/scripts/_aqg_context.sh" || {
   echo "ERROR: cannot resolve AQG root. Fix: export AQG_ROOT=/path/to/checkout." >&2
   exit 2
 }

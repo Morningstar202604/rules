@@ -37,7 +37,7 @@ multi-review is the cross-LLM counterpart to Anthropic's /ultrareview; key diffe
 ### Run it — local script (this repo, the development source)
 
 ```bash
-source "${AQG_ROOT:-$HOME/.deeppattern/agent-quality-gates}/scripts/_aqg_context.sh" || {
+source "${AQG_ROOT:?required: set AQG_ROOT to the AQG installation root (containing skills/ and scripts/)}/scripts/_aqg_context.sh" || {
   echo "ERROR: cannot resolve AQG root. Fix: export AQG_ROOT=/path/to/checkout." >&2
   exit 2
 }
@@ -93,5 +93,5 @@ trivial and non-sensitive → skip the dim; otherwise → `standard`).
 
 - **single security audit, none of the other 4 dims** → `aqg-security-review` (deeper OWASP/CWE)
 - **unsure how deep to audit** → first run `aqg-phase-transition emit` to get recommended_audit_mode
-- **want inline GitHub PR comments** → Claude Code `/ultrareview` (bound to a GitHub PR; the AQG verdict is a markdown ledger)
+- **want inline GitHub PR comments** → Claude Code `/ultrareview` (bound to a GitHub PR; the AQG verdict is a markdown ledger; that command is not bundled in this pack)
 - **cross-LLM verification + cross-client + 5 dim** → **this skill** (strongest differentiation)

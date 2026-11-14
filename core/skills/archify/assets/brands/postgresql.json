@@ -1,0 +1,9 @@
+{
+  "id": "postgresql",
+  "name": "PostgreSQL",
+  "url": "https://www.postgresql.org",
+  "color": "#4169E1",
+  "aliases": [
+    "postgres"
+  ]
+}

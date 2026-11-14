@@ -1,8 +1,8 @@
 ---
 name: sql-database-assistant
-description: "Write SQL queries, optimize slow queries and database performance, generate migrations and schema docs; supports Prisma, Drizzle, TypeORM and SQLAlchemy."
+description: "Write SQL queries, optimize slow queries and database performance, generate migrations and schema docs; supports Prisma, Drizzle, TypeORM and SQLAlchemy. Scope boundary: queries/optimization/migrations only — for PostgreSQL table modeling use postgresql-table-design, for Supabase platform work use supabase."
 
-description_zh: "编写 SQL 查询、优化慢查询与数据库性能、生成迁移与表结构文档，适配 Prisma、TypeORM 等 ORM"
+description_zh: "编写 SQL 查询、优化慢查询与数据库性能、生成迁移与表结构文档，适配 Prisma、TypeORM 等 ORM。边界：只做查询/优化/迁移；PostgreSQL 表结构建模用 postgresql-table-design，Supabase 平台（Auth/RLS/Edge Functions）用 supabase。"
 license: Apache-2.0
 compatibility: Pure prompt-based; may read project structure via Bash.
 metadata:
@@ -17,6 +17,8 @@ metadata:
 # SQL Database Assistant
 
 The day-to-day companion to database-designer. **database-designer** focuses on schema architecture, ERD modeling, and multi-tenancy patterns; this skill covers the everyday: writing queries, optimizing performance, generating migrations, and bridging app code with the database engine.
+
+**Scope boundary (three database skills, no overlap):** this skill owns **query writing, query/index optimization, migrations and schema docs** across dialects and ORMs. It does not own schema modeling rules — for PostgreSQL data types, keys, constraints, indexing strategy, partitioning and live schema-change decisions use `postgresql-table-design`; for Supabase platform concerns (Auth, RLS policies, Edge Functions, Storage, Realtime, CLI/MCP, project config) use `supabase`. When a task spans them, do the table design or platform work in the owning skill and come back here for the queries and migrations.
 
 ## Workflow
 

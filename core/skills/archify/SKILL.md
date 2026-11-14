@@ -17,9 +17,13 @@ metadata:
 
 # Archify
 
+> **CLI 已随包提供（先读这段）**：本包在 `bin/archify.mjs` 提供可直接执行的兼容 CLI（纯 Node 标准库，无依赖）。八条命令 `validate` / `deliver` / `visual-check` / `preview` / `doctor` / `demo` / `guide` / `brands` 均以 `node bin/archify.mjs ...` 运行并返回真实回执；`validate` 按 `schemas/<type>.schema.json` + `schemas/common.schema.json` 校验必需字段、类型、枚举与 id 引用，`deliver` 以 `assets/template.html` 为底生成自包含 HTML 并在同目录写规格快照（`.spec.json`）与 SHA-256 回执。
+> 范围说明：本 CLI 不含上游完整渲染管线——`render` / `compare` / `migrate` / `inspect` / `examples` 未提供；`deliver`/`preview` 产出的 HTML 内嵌 spec JSON 但没有上游交互式 viewer；`visual-check` 输出浏览器人工核查清单回执，不驱动浏览器；`brands capture` 需要网络，离线会明确失败。不要声称未获得的渲染效果或浏览器证据。
+> `test/` 下的上游测试面向完整上游仓库（依赖 `examples/`、渲染器与浏览器），在本包内不能作为通过证据。
+
 Create a self-contained, interactive HTML diagram from a small typed JSON specification. Static output is the default; enable motion only when the user asks for a demo or presentation.
 
-> **Bundle note**: this pack ships the `schemas/`, `renderers/`, and update-check scripts, but NOT the upstream CLI (`bin/archify.mjs`) or the `examples/` directory. If `node bin/archify.mjs ...` fails, degrade gracefully: validate candidates by hand against `schemas/<type>.schema.json` + `schemas/common.schema.json`, skip the CLI receipt steps (validate / deliver / visual-check / doctor / demo), and state plainly in the delivery notes that the artifact was not CLI-validated. Never claim a passing receipt you did not obtain.
+> **Bundle note**: this pack ships a working compatibility CLI at `bin/archify.mjs` (pure Node stdlib, no dependencies). The eight commands `validate` / `deliver` / `visual-check` / `preview` / `doctor` / `demo` / `guide` / `brands` run via `node bin/archify.mjs ...` and return real receipts: `validate` checks candidate JSON against `schemas/<type>.schema.json` + `schemas/common.schema.json` (required fields, types, enums, id references), and `deliver` generates self-contained HTML from `assets/template.html` with a same-directory spec snapshot and SHA-256 receipt. Scope: the upstream interactive renderer pipeline is NOT bundled (`render` / `compare` / `migrate` / `inspect` / `examples` are unavailable); `visual-check` prints the manual browser-verification checklist instead of driving a browser; `brands capture` requires network access and fails explicitly offline. Never claim rendering or browser evidence you did not obtain.
 
 ## Fast authoring path
 
@@ -34,7 +38,7 @@ Use this bounded path for ordinary generation. Do not read the optional Viewer R
    node bin/archify.mjs validate <type> <candidate.json> --quality showcase --json
    ```
 
-   A receipt with only 4 artifact checks is basic validation, never showcase acceptance. A showcase pass must report all 9 artifact checks with 0 composition errors and 0 warnings. If the candidate omits or misspells the exact `meta.quality_profile` field, fix it before geometry. For a workflow v2 geometry diagnosis, run `node bin/archify.mjs validate workflow <candidate.json> --layout-json` and use the stable compiler receipt; solver internals are not authoring controls. A passing final validation freezes the candidate: never edit it afterward.
+   A receipt with only 4 artifact checks is basic validation, never showcase acceptance. A showcase pass must report all 9 artifact checks with 0 composition errors and 0 warnings. If the candidate omits or misspells the exact `meta.quality_profile` field, fix it before geometry. For a workflow v2 geometry diagnosis, run `node bin/archify.mjs validate workflow <candidate.json> --layout-json`; the bundled CLI reports schema-level checks only and its layout receipt states the solver is not bundled, so treat solver-internal geometry claims as unavailable. A passing final validation freezes the candidate: never edit it afterward.
 5. For a delivered HTML, `deliver` is the final acceptance command:
 
    ```bash
@@ -104,7 +108,7 @@ Read `references/authoring-contract.md` only when you need field enums, spacing 
 
 ## Delivery
 
-Use `validate` during repair and `deliver` once for final acceptance. Delivery freezes the exact specification bytes into a private same-directory snapshot, renders and checks that snapshot, atomically commits the HTML, and reports SHA-256 plus byte counts for both specification and artifact. This is deterministic artifact evidence; it does not exercise the Viewer in a browser.
+Use `validate` during repair and `deliver` once for final acceptance. Delivery freezes the exact specification bytes into a same-directory snapshot, embeds the spec into a copy of `assets/template.html` as the delivered HTML, and reports SHA-256 plus byte counts for both specification and artifact. This is deterministic artifact evidence; it does not exercise the Viewer in a browser.
 
 After delivery, collect bounded desktop evidence without modifying or rerendering the trusted HTML:
 

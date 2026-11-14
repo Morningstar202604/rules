@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
-# Close one task of an inline plan execution in a single call: run the task's
-# test command, keep its full output in the workspace, print the tail, and —
-# only if the command succeeded — append the completion line to the ledger.
-# A failing command records nothing: the task is not complete.
+# Close one task of an inline plan execution in a single call: verify the
+# task's work was committed after BASE, run the task's test command, keep its
+# full output in the workspace, print the tail, and — only if everything
+# passed — append the completion line to the ledger. A failing check records
+# nothing: the task is not complete.
+#
+# Self-contained: the workspace is derived from the plan file, matching the
+# convention documented in plan-and-execute — no sibling skill or extra
+# script is needed.
 #
 # Usage: task-done PLAN_FILE TASK_NUMBER BASE -- TEST_COMMAND [ARGS...]
 #   BASE is the SHA task-start printed; the completion line records BASE..HEAD.
+#   HEAD must have moved past BASE (the task's work must be committed first).
 # Exit: the test command's exit status.
 set -euo pipefail
 
@@ -18,13 +24,22 @@ plan=$1
 n=$2
 base=$3
 shift 4
-sdd="$(cd "$(dirname "$0")/../../subagent-driven-development/scripts" && pwd)"
 
 git rev-parse --verify --quiet "$base" >/dev/null || { echo "bad BASE: $base" >&2; exit 2; }
+git merge-base --is-ancestor "$base" HEAD >/dev/null || { echo "BASE is not an ancestor of HEAD: $base" >&2; exit 2; }
+if [ "$(git rev-parse HEAD)" = "$(git rev-parse "$base")" ]; then
+  echo "task-done: no commits since BASE $base; commit the task's work first (nothing recorded)" >&2
+  exit 1
+fi
 
-dir=$("$sdd/sdd-workspace" "$plan")
-log="$dir/task-${n}-tests.log"
-ledger="$dir/progress.md"
+# Workspace: <repo-root>/.superpowers/sdd/<plan-basename>/ (falls back to the
+# plan's directory when the plan lives outside a git work tree).
+repo=$(git rev-parse --show-toplevel 2>/dev/null || true)
+root=${repo:-$(dirname "$plan")}
+workspace="$root/.superpowers/sdd/$(basename "$plan")"
+mkdir -p "$workspace"
+log="$workspace/task-${n}-tests.log"
+ledger="$workspace/progress.md"
 
 # Render the command the way a person would type it, for the ledger line.
 cmd=""

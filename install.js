@@ -51,6 +51,7 @@ const HOOK_SCRIPTS = [
   'user-prompt.js',
   'guard-write.js',
   'guard-bash.js',
+  'repeat-guard.js',
   'plan-sync.js',
   'track-verify.js',
   'stop-guard.js',
@@ -70,12 +71,13 @@ const DEV_SKILLS = new Set([
   'agent-designer', 'agent-router', 'agent-work-contract',
   'api-design-reviewer', 'aqg-code-construction', 'aqg-evidence-closeout', 'aqg-startup-preflight',
   'archify', 'audit', 'cache-economy', 'change-integrity', 'ci-cd-pipeline-builder',
-  'code-review', 'decision-log', 'deep-security-scan',
+  'code-review', 'decision-log', 'deep-security-scan', 'security-audit',
   'discernment-nudge', 'docker', 'env-secrets-manager', 'executing-plans',
   'finishing-a-development-branch', 'frontend-app-builder',
   'frontend-design', 'frontend-testing-debugging', 'git-workflow',
   'incremental-refactor', 'intent-recognition', 'long-run-execution', 'master-checklist',
   'mcp-builder', 'observability-designer', 'performance-profiler', 'postgresql-table-design',
+  'plan-and-execute',
   'process-and-artifact-ledger', 'project-lifecycle', 'python', 'quality-gate-checklist',
   'react-best-practices', 'repo-cartography', 'repo-hygiene',
   'rust', 'security-scan', 'senior-architect', 'session-handoff', 'shadcn', 'ship-gate',
@@ -395,6 +397,7 @@ function zcodeHookEvents(hooksDir) {
     PreToolUse: [
       mk('guard-write.js', '校验敏感路径与改动登记', { matcher: 'Edit|Write|ApplyPatch' }),
       mk('guard-bash.js', '危险命令与密钥校验', { matcher: 'Bash' }),
+      mk('repeat-guard.js', '连续重复调用提醒'),
     ],
     PostToolUse: [
       mk('plan-sync.js', '同步计划到记忆文件', { matcher: 'TodoWrite' }),
@@ -499,7 +502,7 @@ function claudeHookEvents(hooksDir) {
   return {
     SessionStart: [mk('session-start.js')],
     UserPromptSubmit: [mk('user-prompt.js')],
-    PreToolUse: [mk('guard-write.js', 'Edit|Write'), mk('guard-bash.js', 'Bash')],
+    PreToolUse: [mk('guard-write.js', 'Edit|Write'), mk('guard-bash.js', 'Bash'), mk('repeat-guard.js')],
     PostToolUse: [mk('plan-sync.js', 'TodoWrite'), mk('track-verify.js', 'Bash'), mk('checkpoint-remind.js', null)],
     Stop: [mk('stop-guard.js')],
   };
@@ -763,6 +766,15 @@ function installProfile(name) {
     if (profile.hooks && opt.withHooks) {
       const hookStats = copyTree(path.join(CORE, 'hooks'), path.join(home, profile.hooks), manifest);
       log('  ' + sym('updated') + ' 钩子 → ' + profile.hooks + '/（新增 ' + hookStats.created + '，更新 ' + hookStats.updated + '）');
+    }
+
+    // 共享脚本与运行时库：技能脚本依赖 core/scripts/、core/client/、core/installer/ 下的模块。
+    for (const dirName of ['scripts', 'client', 'installer']) {
+      const srcDir = path.join(CORE, dirName);
+      if (!fs.existsSync(srcDir)) continue;
+      const destDir = path.join(home, dirName);
+      const stats = copyTree(srcDir, destDir, manifest);
+      log('  ' + sym('updated') + ' ' + dirName + '/ → ' + dirName + '/（新增 ' + stats.created + '，更新 ' + stats.updated + '）');
     }
 
  if (profile.after && (opt.withHooks || name === 'opencode')) profile.after(home, manifest);

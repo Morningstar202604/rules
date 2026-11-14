@@ -17,7 +17,7 @@ description: Consolidate multiple completed audit results into one traceable dec
 - N audit rounds accumulated (round 1/2/3...) and you want cross-round synthesis
 - Cross-session audit summary across 2-3 prior build sessions
 - Mixed findings + hypothesis composite output (from `/audit-market-research`
-  or `/audit-writing-plans`) — need one consolidated view
+  or `/audit-writing-plans` — neither is bundled in this pack) — need one consolidated view
 - Hand the table to a downstream agent (EAF) for execution
 - Apply AQG validator fail-stop discipline to a user-facing decision artifact
 
@@ -25,6 +25,7 @@ description: Consolidate multiple completed audit results into one traceable dec
 
 - **No audit results yet** — first run `/audit`, `/audit-market-research`,
   `/audit-writing-plans`, `/audit-brainstorming`, or `/audit-layer-check`
+  (only `/audit` is bundled in this pack; the other four are not)
 - **You want to RUN an audit** — use the audit skills above
 - **Audit returned solid + 0 findings** — adjudication is trivial; skip
 

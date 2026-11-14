@@ -1,7 +1,7 @@
 ---
 name: postgresql-table-design
-description: "Design or review PostgreSQL schemas: data types, indexing, constraints, performance patterns and advanced features."
-description_zh: "设计或审查 PostgreSQL 数据库表结构：最佳实践、数据类型、索引、约束、性能模式与高级特性。"
+description: "Design or review PostgreSQL schemas: data types, indexing, constraints, performance patterns and advanced features. Scope boundary: PostgreSQL table modeling only — for query writing/optimization and migrations use sql-database-assistant, for Supabase platform work (Auth/RLS/Edge Functions) use supabase."
+description_zh: "设计或审查 PostgreSQL 数据库表结构：最佳实践、数据类型、索引、约束、性能模式与高级特性。边界：只做 PG 表结构建模；SQL 查询/优化/迁移用 sql-database-assistant，Supabase 平台（Auth/RLS/Edge Functions）用 supabase。"
 license: MIT
 compatibility: 纯提示型，任意支持 SKILL.md 的工具可用；无外部依赖。
 metadata:
@@ -15,6 +15,8 @@ metadata:
 ---
 
 # PostgreSQL Table Design
+
+**Scope boundary (three database skills, no overlap):** this skill owns **PostgreSQL table modeling** — column types, keys, constraints, indexes, partitioning, JSONB/extension choices, and schema-change decisions. It does not own query authoring or runtime tuning: for writing/optimizing SQL and generating migrations use `sql-database-assistant`. It is engine-level, not platform-level: for Supabase concerns (Auth, RLS policies, Edge Functions, Storage, Realtime, CLI/MCP) use `supabase` — RLS policy design is Supabase-specific and lives there. When a task spans them, model the tables here first, then hand the schema to the other skill.
 
 ## When to Use
 
